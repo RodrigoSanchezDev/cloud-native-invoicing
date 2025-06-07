@@ -23,10 +23,19 @@
   </properties>
   <dependencyManagement>
     <dependencies>
+      <!-- Spring Boot dependencies -->
       <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-dependencies</artifactId>
         <version>3.5.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- AWS Spring Cloud BOM -->
+      <dependency>
+        <groupId>io.awspring.cloud</groupId>
+        <artifactId>spring-cloud-aws-dependencies</artifactId>
+        <version>3.0.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
