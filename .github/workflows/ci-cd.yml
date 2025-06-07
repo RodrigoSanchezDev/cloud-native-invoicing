@@ -27,8 +27,12 @@ jobs:
 
       - name: Rename JARs for Docker
         run: |
-          mv invoice-service/target/*.jar invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar
-          mv file-service/target/*.jar file-service/target/file-service-0.0.1-SNAPSHOT.jar
+          if [ ! -f invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar ]; then
+            mv invoice-service/target/*.jar invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar
+          fi
+          if [ ! -f file-service/target/file-service-0.0.1-SNAPSHOT.jar ]; then
+            mv file-service/target/*.jar file-service/target/file-service-0.0.1-SNAPSHOT.jar
+          fi
 
       - name: Docker login
         run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
