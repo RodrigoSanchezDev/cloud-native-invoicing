@@ -60,11 +60,20 @@ jobs:
             exit 1
           fi
 
+      - name: Debug AWS Secrets
+        run: |
+          echo "Debugging AWS Secrets..."
+          echo "AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}"
+          echo "AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          echo "AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}"
+
       - name: Verify Docker login in EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
             echo "Docker Username: $DOCKERHUB_USERNAME"
             echo "Docker Token: $DOCKERHUB_TOKEN"
+            echo "Pulling invoice-service image: $DOCKERHUB_USERNAME/invoice-service:latest"
+            echo "Pulling file-service image: $DOCKERHUB_USERNAME/file-service:latest"
             docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
             docker pull "$DOCKERHUB_USERNAME/invoice-service:latest"
             docker pull "$DOCKERHUB_USERNAME/file-service:latest"
@@ -74,7 +83,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
             echo "Verifying Docker login..."
-            docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN || exit 1
+            docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN" || exit 1
             echo "Pulling images..."
             docker pull "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
             docker pull "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
