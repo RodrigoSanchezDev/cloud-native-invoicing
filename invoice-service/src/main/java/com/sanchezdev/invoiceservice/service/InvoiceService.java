@@ -9,8 +9,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,24 +24,22 @@ import java.util.Optional;
 @Service @RequiredArgsConstructor
 public class InvoiceService {
   private final InvoiceRepository repo;
-  private final WebClient webClient = WebClient.create();
+  private final RestTemplate restTemplate = new RestTemplate();
   @Value("${file.service.url}") private String fileServiceUrl;
 
   public Invoice createAndUpload(String clientId, LocalDate date, byte[] content, String filename) {
-    // 1) llamar file-service para guardar en EFS + S3
-    MultiValueMap<String, org.springframework.core.io.Resource> formData = new LinkedMultiValueMap<>();
-    org.springframework.core.io.ByteArrayResource resource = new org.springframework.core.io.ByteArrayResource(content) {
-      @Override
-      public String getFilename() { return filename; }
-    };
-    formData.add("file", resource);
-    webClient.post()
-      .uri(fileServiceUrl + "/files/upload/{client}/{date}", clientId, date.toString())
-      .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
-      .body(org.springframework.web.reactive.function.BodyInserters.fromMultipartData(formData))
-      .retrieve()
-      .toBodilessEntity()
-      .block();
+    // 1) llamar file-service para guardar en EFS + S3 con RestTemplate multipart
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+    LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+    form.add("file", new ByteArrayResource(content) {
+        @Override public String getFilename() { return filename; }
+    });
+    HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(form, headers);
+    restTemplate.postForEntity(
+        fileServiceUrl + "/files/upload/" + clientId + "/" + date.toString(),
+        entity, String.class
+    );
 
     // 2) guardar metadata en H2
     Invoice inv = new Invoice();
@@ -68,11 +71,10 @@ public class InvoiceService {
   }
 
   public byte[] downloadFileFromFileService(String fileServiceUrl, String key) {
-    // Llama al file-service para descargar el archivo
-    return webClient.get()
-      .uri(fileServiceUrl + "/files/download/" + key)
-      .retrieve()
-      .bodyToMono(byte[].class)
-      .block();
+    // Descarga el archivo usando RestTemplate
+    return restTemplate.getForObject(
+        fileServiceUrl + "/files/download/" + key,
+        byte[].class
+    );
   }
 }
