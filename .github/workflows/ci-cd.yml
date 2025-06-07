@@ -67,6 +67,12 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           echo "AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}"
 
+      - name: Debug Docker Variables
+        run: |
+          echo "Debugging Docker Variables..."
+          echo "DOCKERHUB_USERNAME: $DOCKERHUB_USERNAME"
+          echo "DOCKERHUB_TOKEN: $DOCKERHUB_TOKEN"
+
       - name: Verify Docker login in EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
