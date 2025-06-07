@@ -60,6 +60,14 @@ jobs:
             exit 1
           fi
 
+      - name: Verify Docker login in EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
+            docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+            docker pull sanchezdev01/invoice-service:latest
+            docker pull sanchezdev01/file-service:latest
+          EOF
+
       - name: Deploy to EC2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
