@@ -1,0 +1,64 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  DOCKERHUB_USERNAME: sanchezdev01
+  DOCKERHUB_TOKEN: ***REMOVED***
+  EC2_HOST: 35.171.240.169
+  EC2_USER: ec2-user
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Rename JARs for Docker
+        run: |
+          mv invoice-service/target/*.jar invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar
+          mv file-service/target/*.jar file-service/target/file-service-0.0.1-SNAPSHOT.jar
+
+      - name: Docker login
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      - name: Build & push invoice-service
+        run: |
+          docker build -f Dockerfile.invoice -t $DOCKERHUB_USERNAME/invoice-service:${{ github.sha }} .
+          docker push $DOCKERHUB_USERNAME/invoice-service:${{ github.sha }}
+
+      - name: Build & push file-service
+        run: |
+          docker build -f Dockerfile.file -t $DOCKERHUB_USERNAME/file-service:${{ github.sha }} .
+          docker push $DOCKERHUB_USERNAME/file-service:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy SSH key
+        run: |
+          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
+            docker pull $DOCKERHUB_USERNAME/invoice-service:${GITHUB_SHA}
+            docker pull $DOCKERHUB_USERNAME/file-service:${GITHUB_SHA}
+            docker stop invoice-service || true && docker rm invoice-service || true
+            docker stop file-service    || true && docker rm file-service    || true
+            docker run -d --name file-service -p 8081:8081 $DOCKERHUB_USERNAME/file-service:${GITHUB_SHA}
+            docker run -d --name invoice-service -p 8080:8080 $DOCKERHUB_USERNAME/invoice-service:${GITHUB_SHA}
+          EOF

@@ -1,0 +1,24 @@
+<project ...>
+  <parent>
+    <groupId>com.sanchezdev</groupId>
+    <artifactId>invoice-management</artifactId>
+    <version>1.0.0</version>
+  </parent>
+  <artifactId>file-service</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${aws.sdk.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+  </dependencies>
+</project>
