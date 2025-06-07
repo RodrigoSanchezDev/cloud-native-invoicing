@@ -5,10 +5,10 @@ on:
     branches: [ main ]
 
 env:
-  DOCKERHUB_USERNAME: sanchezdev01
-  DOCKERHUB_TOKEN: ***REMOVED***
-  EC2_HOST: 35.171.240.169
-  EC2_USER: ec2-user
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ${{ secrets.EC2_USER }}
 
 jobs:
   build-and-push:
@@ -53,12 +53,23 @@ jobs:
           chmod 600 key.pem
 
       - name: Deploy to EC2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
+            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+            export AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN
             docker pull $DOCKERHUB_USERNAME/invoice-service:${GITHUB_SHA}
             docker pull $DOCKERHUB_USERNAME/file-service:${GITHUB_SHA}
             docker stop invoice-service || true && docker rm invoice-service || true
             docker stop file-service    || true && docker rm file-service    || true
-            docker run -d --name file-service -p 8081:8081 $DOCKERHUB_USERNAME/file-service:${GITHUB_SHA}
+            docker run -d --name file-service -p 8081:8081 \
+              -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+              -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+              -e AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN \
+              $DOCKERHUB_USERNAME/file-service:${GITHUB_SHA}
             docker run -d --name invoice-service -p 8080:8080 $DOCKERHUB_USERNAME/invoice-service:${GITHUB_SHA}
           EOF
