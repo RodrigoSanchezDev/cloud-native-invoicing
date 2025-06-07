@@ -6,6 +6,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Entity
 @Data
 public class Invoice {
@@ -14,4 +16,8 @@ public class Invoice {
     private Long id;
     private String description;
     private Double amount;
+    private String clientId;
+    private LocalDate date;
+    private String fileName;
+    private String s3Key;
 }

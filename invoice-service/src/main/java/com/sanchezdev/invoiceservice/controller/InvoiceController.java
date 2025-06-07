@@ -72,7 +72,6 @@ public class InvoiceController {
   public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long id) {
     return svc.getInvoiceById(id)
         .map(inv -> {
-          // Llama a file-service para descargar el archivo asociado
           String url = System.getProperty("file.service.url", "http://35.171.240.169:8081");
           String key = inv.getFileName();
           try {
@@ -82,9 +81,10 @@ public class InvoiceController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(file);
           } catch (Exception e) {
-            return ResponseEntity.status(500).body(null);
+            return null;
           }
         })
-        .orElse(ResponseEntity.notFound().build());
+        .filter(response -> response != null)
+        .orElse(ResponseEntity.status(500).body(null));
   }
 }

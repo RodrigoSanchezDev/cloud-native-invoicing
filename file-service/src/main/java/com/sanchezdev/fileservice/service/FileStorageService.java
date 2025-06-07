@@ -32,9 +32,13 @@ public class FileStorageService {
   }
 
   public byte[] download(String client, String date, String filename) {
-    String key = client + "/" + date + "/" + filename;
-    return s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())
-             .readAllBytes();
+    try {
+      String key = client + "/" + date + "/" + filename;
+      return s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())
+               .readAllBytes();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public void delete(String client, String date, String filename) {
@@ -54,22 +58,30 @@ public class FileStorageService {
       .collect(Collectors.toList());
   }
 
-  public void uploadFile(String key, MultipartFile file) throws IOException {
-        s3.putObject(
-            PutObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .build(),
-            RequestBody.fromBytes(file.getBytes())
-        );
+  public void uploadFile(String key, MultipartFile file) {
+    try {
+      s3.putObject(
+          PutObjectRequest.builder()
+              .bucket(bucket)
+              .key(key)
+              .build(),
+          RequestBody.fromBytes(file.getBytes())
+      );
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    public byte[] downloadFile(String key) {
-        return s3.getObject(
-            GetObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .build()
-        ).readAllBytes();
+  public byte[] downloadFile(String key) {
+    try {
+      return s3.getObject(
+          GetObjectRequest.builder()
+              .bucket(bucket)
+              .key(key)
+              .build()
+      ).readAllBytes();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+  }
 }

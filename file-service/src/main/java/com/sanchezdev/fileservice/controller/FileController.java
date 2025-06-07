@@ -14,10 +14,12 @@ import java.util.List;
 public class FileController {
   private final FileStorageService svc;
 
-  @PostMapping("/upload")
-  public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
+  @PostMapping("/upload/{client}/{date}")
+  public ResponseEntity<String> uploadFile(@PathVariable String client, @PathVariable String date, @RequestParam("file") MultipartFile file) {
     try {
       svc.save(
+          client,
+          date,
           file.getOriginalFilename(),
           file.getBytes());
       return ResponseEntity.ok("Archivo subido correctamente");
@@ -26,10 +28,10 @@ public class FileController {
     }
   }
 
-  @GetMapping("/download/{filename}")
-  public ResponseEntity<byte[]> downloadFile(@PathVariable String filename) {
+  @GetMapping("/download/{client}/{date}/{filename}")
+  public ResponseEntity<byte[]> downloadFile(@PathVariable String client, @PathVariable String date, @PathVariable String filename) {
     try {
-      byte[] data = svc.download(filename);
+      byte[] data = svc.download(client, date, filename);
       return ResponseEntity.ok()
           .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
