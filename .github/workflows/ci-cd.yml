@@ -94,8 +94,8 @@ jobs:
             docker pull "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
             docker pull "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
             echo "Running containers..."
-            docker run --rm "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
-            docker run --rm "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
+            docker run -d --rm "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
+            docker run -d --rm "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
           EOF
 
       - name: Deploy to EC2
