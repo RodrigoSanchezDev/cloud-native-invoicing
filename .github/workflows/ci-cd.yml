@@ -125,4 +125,4 @@ jobs:
               -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
               -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
               "$DOCKERHUB_USERNAME/invoice-service:latest"
-          EOF"
+          EOF
