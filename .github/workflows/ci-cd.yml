@@ -63,9 +63,24 @@ jobs:
       - name: Verify Docker login in EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
-            docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
-            docker pull sanchezdev01/invoice-service:latest
-            docker pull sanchezdev01/file-service:latest
+            echo "Docker Username: $DOCKERHUB_USERNAME"
+            echo "Docker Token: $DOCKERHUB_TOKEN"
+            docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
+            docker pull "$DOCKERHUB_USERNAME/invoice-service:latest"
+            docker pull "$DOCKERHUB_USERNAME/file-service:latest"
+          EOF
+
+      - name: Debug Docker in EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
+            echo "Verifying Docker login..."
+            docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN || exit 1
+            echo "Pulling images..."
+            docker pull "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
+            docker pull "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
+            echo "Running containers..."
+            docker run --rm "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
+            docker run --rm "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
           EOF
 
       - name: Deploy to EC2
@@ -75,21 +90,24 @@ jobs:
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         run: |
           ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
-            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-            export AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN
-            docker pull $DOCKERHUB_USERNAME/invoice-service:latest
-            docker pull $DOCKERHUB_USERNAME/file-service:latest
+            export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+            export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+            export AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN"
+            echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
+            echo "AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY"
+            echo "AWS_SESSION_TOKEN: $AWS_SESSION_TOKEN"
+            docker pull "$DOCKERHUB_USERNAME/invoice-service:latest"
+            docker pull "$DOCKERHUB_USERNAME/file-service:latest"
             docker stop invoice-service || true && docker rm invoice-service || true
             docker stop file-service    || true && docker rm file-service    || true
             docker run -d --name file-service -p 8081:8081 \
-              -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
-              -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-              -e AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN \
-              $DOCKERHUB_USERNAME/file-service:latest
+              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+              -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+              "$DOCKERHUB_USERNAME/file-service:latest"
             docker run -d --name invoice-service -p 8080:8080 \
-              -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
-              -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-              -e AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN \
-              $DOCKERHUB_USERNAME/invoice-service:latest
+              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+              -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+              "$DOCKERHUB_USERNAME/invoice-service:latest"
           EOF
