@@ -4,84 +4,52 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.*;
-import java.nio.file.*;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.io.File;
+import java.io.IOException;
 
-@Service @RequiredArgsConstructor
+@Service
+@RequiredArgsConstructor
 public class FileStorageService {
-  private final S3Client s3;
-  @Value("${aws.s3.bucket}")   private String bucket;
-  @Value("${efs.base.dir}")    private String baseDir;
+    @Value("${efs.base.dir}")
+    private String efsBaseDir;
+    @Value("${spring.cloud.aws.s3.bucket}")
+    private String bucket;
+    private final S3Client s3Client;
 
-  public void save(String client, String date, String filename, byte[] data) throws IOException {
-    Path dir = Paths.get(baseDir, client, date);
-    Files.createDirectories(dir);
-    Path file = dir.resolve(filename);
-    Files.write(file, data);
-
-    String key = client + "/" + date + "/" + filename;
-    s3.putObject(PutObjectRequest.builder()
-        .bucket(bucket).key(key).build(),
-      RequestBody.fromBytes(data));
-  }
-
-  public byte[] download(String client, String date, String filename) {
-    try {
-      String key = client + "/" + date + "/" + filename;
-      return s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())
-               .readAllBytes();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    public void saveFile(String client, String date, MultipartFile file) {
+        // 1. Guardar en EFS
+        String path = efsBaseDir + "/" + client + "/" + date;
+        File dir = new File(path);
+        if (!dir.exists()) dir.mkdirs();
+        File dest = new File(dir, file.getOriginalFilename());
+        try {
+            file.transferTo(dest);
+        } catch (Exception e) {
+            throw new RuntimeException("Error guardando archivo en EFS", e);
+        }
+        // 2. Subir a S3
+        PutObjectRequest putReq = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(client + "/" + date + "/" + file.getOriginalFilename())
+                .contentType(file.getContentType())
+                .build();
+        s3Client.putObject(putReq, RequestBody.fromFile(dest));
     }
-  }
 
-  public void delete(String client, String date, String filename) {
-    String key = client + "/" + date + "/" + filename;
-    s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
-    // opcional: borrar de EFS
-  }
-
-  public List<String> list(String client) {
-    ListObjectsV2Response resp = s3.listObjectsV2(
-      ListObjectsV2Request.builder()
-        .bucket(bucket)
-        .prefix(client + "/")
-        .build());
-    return resp.contents().stream()
-      .map(obj -> obj.key())
-      .collect(Collectors.toList());
-  }
-
-  public void uploadFile(String key, MultipartFile file) {
-    try {
-      s3.putObject(
-          PutObjectRequest.builder()
-              .bucket(bucket)
-              .key(key)
-              .build(),
-          RequestBody.fromBytes(file.getBytes())
-      );
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    public byte[] downloadFile(String key) {
+        // Descargar siempre desde S3
+        GetObjectRequest getReq = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+        ResponseBytes<GetObjectResponse> resp = s3Client.getObjectAsBytes(getReq);
+        return resp.asByteArray();
     }
-  }
-
-  public byte[] downloadFile(String key) {
-    try {
-      return s3.getObject(
-          GetObjectRequest.builder()
-              .bucket(bucket)
-              .key(key)
-              .build()
-      ).readAllBytes();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
 }
