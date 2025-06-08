@@ -19,13 +19,21 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build & push file-service
+        working-directory: invoice-management
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest ./file-service
+          docker build \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest \
+            -f Dockerfile.file \
+            .
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
 
       - name: Build & push invoice-service
+        working-directory: invoice-management
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest ./invoice-service
+          docker build \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest \
+            -f Dockerfile.invoice \
+            .
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest
 
   deploy:
@@ -40,15 +48,15 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Pull down the latest images
+            # 1) Pull latest images
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest
 
-            # Clean up old containers (if any)
+            # 2) Stop & remove any old containers
             docker stop file-service invoice-service || true
             docker rm   file-service invoice-service || true
 
-            # Run file-service, mounting your EFS path and injecting AWS creds
+            # 3) Run file-service (montando EFS en la ruta que espera la app)
             docker run -d --name file-service \
               -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
               -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
@@ -57,7 +65,7 @@ jobs:
               -v /mnt/efs/invoices:/mnt/efs/invoices \
               ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
 
-            # Run invoice-service, injecting AWS creds
+            # 4) Run invoice-service
             docker run -d --name invoice-service \
               -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
               -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
