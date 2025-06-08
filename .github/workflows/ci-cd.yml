@@ -4,125 +4,63 @@ on:
   push:
     branches: [ main ]
 
-env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  EC2_HOST: ${{ secrets.EC2_HOST }}
-  EC2_USER: ${{ secrets.EC2_USER }}
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Build with Maven
-        run: mvn clean package -DskipTests
-
-      - name: Rename JARs for Docker
-        run: |
-          if [ ! -f invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar ]; then
-            mv invoice-service/target/*.jar invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar
-          fi
-          if [ ! -f file-service/target/file-service-0.0.1-SNAPSHOT.jar ]; then
-            mv file-service/target/*.jar file-service/target/file-service-0.0.1-SNAPSHOT.jar
-          fi
-
-      - name: Docker login
-        run: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-
-      - name: Build & push invoice-service
-        run: |
-          docker build -f Dockerfile.invoice -t $DOCKERHUB_USERNAME/invoice-service:latest .
-          docker push $DOCKERHUB_USERNAME/invoice-service:latest
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build & push file-service
         run: |
-          docker build -f Dockerfile.file -t $DOCKERHUB_USERNAME/file-service:latest .
-          docker push $DOCKERHUB_USERNAME/file-service:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest ./file-service
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
+
+      - name: Build & push invoice-service
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest ./invoice-service
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+
     steps:
-      - name: Copy SSH key
-        run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
-          chmod 600 key.pem
-          if [ ! -s key.pem ]; then
-            echo "Error: La clave SSH no se cargó correctamente." >&2
-            exit 1
-          fi
-
-      - name: Debug AWS Secrets
-        run: |
-          echo "Debugging AWS Secrets..."
-          echo "AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}"
-          echo "AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          echo "AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}"
-
-      - name: Debug Docker Variables
-        run: |
-          echo "Debugging Docker Variables..."
-          echo "DOCKERHUB_USERNAME: $DOCKERHUB_USERNAME"
-          echo "DOCKERHUB_TOKEN: $DOCKERHUB_TOKEN"
-
-      - name: Verify Docker login in EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST <<EOF
-            echo "Docker Username: $DOCKERHUB_USERNAME"
-            echo "Docker Token: $DOCKERHUB_TOKEN"
-            echo "Pulling invoice-service image: $DOCKERHUB_USERNAME/invoice-service:latest"
-            echo "Pulling file-service image: $DOCKERHUB_USERNAME/file-service:latest"
-            docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
-            docker pull "$DOCKERHUB_USERNAME/invoice-service:latest"
-            docker pull "$DOCKERHUB_USERNAME/file-service:latest"
-          EOF
-
-      - name: Debug Docker in EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST <<EOF
-            echo "Verifying Docker login..."
-            docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN" || exit 1
-            echo "Pulling images..."
-            docker pull "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
-            docker pull "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
-            echo "Running containers..."
-            docker run -d --rm "$DOCKERHUB_USERNAME/invoice-service:latest" || exit 1
-            docker run -d --rm "$DOCKERHUB_USERNAME/file-service:latest" || exit 1
-          EOF
-
       - name: Deploy to EC2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-        run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem $EC2_USER@$EC2_HOST <<EOF
-            export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
-            export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
-            export AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN"
-            echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
-            echo "AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY"
-            echo "AWS_SESSION_TOKEN: $AWS_SESSION_TOKEN"
-            docker pull "$DOCKERHUB_USERNAME/invoice-service:latest"
-            docker pull "$DOCKERHUB_USERNAME/file-service:latest"
-            docker stop invoice-service || true && docker rm invoice-service || true
-            docker stop file-service    || true && docker rm file-service    || true
-            docker run -d --name file-service -p 8081:8081 \
-              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
-              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
-              -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
-              "$DOCKERHUB_USERNAME/file-service:latest"
-            docker run -d --name invoice-service -p 8080:8080 \
-              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
-              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
-              -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
-              "$DOCKERHUB_USERNAME/invoice-service:latest"
-          EOF
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Pull down the latest images
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest
+
+            # Clean up old containers (if any)
+            docker stop file-service invoice-service || true
+            docker rm   file-service invoice-service || true
+
+            # Run file-service, mounting your EFS path and injecting AWS creds
+            docker run -d --name file-service \
+              -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              -e AWS_REGION=us-east-1 \
+              -p 8081:8081 \
+              -v /mnt/efs/invoices:/mnt/efs/invoices \
+              ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
+
+            # Run invoice-service, injecting AWS creds
+            docker run -d --name invoice-service \
+              -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              -e AWS_REGION=us-east-1 \
+              -p 8080:8080 \
+              ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest
