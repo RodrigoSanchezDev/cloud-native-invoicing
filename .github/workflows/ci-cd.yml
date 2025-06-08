@@ -65,15 +65,12 @@ jobs:
           DOCKERHUB_TOKEN:       ${{ secrets.DOCKERHUB_TOKEN }}
         run: echo "Deploy environment variables configured"
 
-      # Configure AWS on runner and create initial S3 folder
-      - name: Configure AWS credentials for S3 folder creation
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
+      # Create initial S3 folder using AWS CLI and env vars
       - name: Create initial folder in S3
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:            us-east-1
         run: |
           chmod +x s3-folder-creation.sh
           bash s3-folder-creation.sh
