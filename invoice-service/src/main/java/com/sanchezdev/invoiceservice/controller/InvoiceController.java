@@ -3,6 +3,7 @@ package com.sanchezdev.invoiceservice.controller;
 import com.sanchezdev.invoiceservice.model.Invoice;
 import com.sanchezdev.invoiceservice.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,6 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InvoiceController {
   private final InvoiceService svc;
+  @Value("${file.service.url}")
+  private String fileServiceUrl;
 
   @PostMapping("/{clientId}")
   public ResponseEntity<Invoice> create(
@@ -72,17 +75,16 @@ public class InvoiceController {
   public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long id) {
     return svc.getInvoiceById(id)
         .map(inv -> {
-          String url = System.getProperty("file.service.url", "http://35.171.240.169:8081");
-          String key = inv.getFileName();
-          try {
-            byte[] file = svc.downloadFileFromFileService(url, key);
-            return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + key + "\"")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(file);
-          } catch (Exception e) {
-            return null;
-          }
+           String key = inv.getFileName();
+           try {
+            byte[] file = svc.downloadFileFromFileService(fileServiceUrl, key);
+             return ResponseEntity.ok()
+                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + key + "\"")
+                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                 .body(file);
+           } catch (Exception e) {
+             return null;
+           }
         })
         .filter(response -> response != null)
         .orElse(ResponseEntity.status(500).body(null));
