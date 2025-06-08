@@ -13,6 +13,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
@@ -53,6 +54,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+
     steps:
       - name: Copy SSH key
         run: |
@@ -64,27 +66,32 @@ jobs:
           fi
 
       - name: Deploy to EC2
-        # Sólo pasamos Access Key y Secret; AWS_SESSION_TOKEN ya no es necesario
         env:
           AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:            us-east-1
+          DOCKERHUB_USERNAME:    ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN:       ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           ssh -o StrictHostKeyChecking=no \
-              -i key.pem $EC2_USER@$EC2_HOST << 'EOF'
-            # Exportamos sólo las credenciales necesarias y la región
+              -i key.pem $EC2_USER@$EC2_HOST <<EOF
+            # Credenciales y región
             export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
             export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
-            export AWS_REGION="us-east-1"
+            export AWS_REGION="$AWS_REGION"
 
-            # Tiramos las últimas imágenes
+            # Login a Docker Hub
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            # Traer las últimas imágenes
             docker pull $DOCKERHUB_USERNAME/file-service:latest
             docker pull $DOCKERHUB_USERNAME/invoice-service:latest
 
-            # Paramos y eliminamos viejos contenedores
+            # Parar y limpiar antiguos contenedores
             docker stop file-service invoice-service || true
             docker rm   file-service invoice-service || true
 
-            # Levantamos file-service con EFS montado
+            # Levantar file-service con EFS montado
             docker run -d --name file-service -p 8081:8081 \
               -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
               -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
@@ -92,7 +99,7 @@ jobs:
               -v /mnt/efs/invoices:/mnt/efs/invoices \
               $DOCKERHUB_USERNAME/file-service:latest
 
-            # Levantamos invoice-service
+            # Levantar invoice-service
             docker run -d --name invoice-service -p 8080:8080 \
               -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
               -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
