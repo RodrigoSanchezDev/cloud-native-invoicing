@@ -23,8 +23,8 @@ public class FileController {
     return ResponseEntity.ok().build();
   }
 
-  @GetMapping("/download/{key}")
-  public ResponseEntity<byte[]> download(@PathVariable String key) {
+  @GetMapping("/download/{key:.+}")
+  public ResponseEntity<byte[]> download(@PathVariable("key") String key) {
     byte[] fileBytes = fileStorageService.downloadFile(key);
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + key)
