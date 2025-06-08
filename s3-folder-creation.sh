@@ -11,6 +11,8 @@ if [ -z "${AWS_REGION:-}" ]; then
   exit 1
 fi
 # Create prefix folder in S3
+echo "Caller Identity:"
+aws sts get-caller-identity --output json || echo "Warning: sts get-caller-identity failed"
 aws s3api put-object \
   --bucket "$S3_BUCKET" \
   --key "carpeta/" \
