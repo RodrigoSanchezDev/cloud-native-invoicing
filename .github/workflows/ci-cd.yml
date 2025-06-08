@@ -1,3 +1,5 @@
+# .github/workflows/ci-cd.yml
+
 name: CI/CD Pipeline
 
 on:
@@ -19,7 +21,6 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build & push file-service
-        working-directory: invoice-management
         run: |
           docker build \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest \
@@ -28,7 +29,6 @@ jobs:
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
 
       - name: Build & push invoice-service
-        working-directory: invoice-management
         run: |
           docker build \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest \
@@ -48,15 +48,16 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1) Pull latest images
+            # 1) Traemos las nuevas imágenes
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/invoice-service:latest
 
-            # 2) Stop & remove any old containers
+            # 2) Paramos y borramos versiones anteriores
             docker stop file-service invoice-service || true
             docker rm   file-service invoice-service || true
 
-            # 3) Run file-service (montando EFS en la ruta que espera la app)
+            # 3) Levantamos file-service, montando EFS exactamente
+            #    donde tu app espera ver /mnt/efs/invoices
             docker run -d --name file-service \
               -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
               -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
@@ -65,7 +66,7 @@ jobs:
               -v /mnt/efs/invoices:/mnt/efs/invoices \
               ${{ secrets.DOCKERHUB_USERNAME }}/file-service:latest
 
-            # 4) Run invoice-service
+            # 4) Levantamos invoice-service
             docker run -d --name invoice-service \
               -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
               -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
