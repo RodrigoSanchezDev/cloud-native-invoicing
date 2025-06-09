@@ -134,3 +134,5 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 **Author:** Rodrigo Sanchez  
 [https://sanchezdev.com](https://sanchezdev.com)
+[https://linkedin.com/in/sanchezdev/](https://linkedin.com/in/sanchezdev/)
+
