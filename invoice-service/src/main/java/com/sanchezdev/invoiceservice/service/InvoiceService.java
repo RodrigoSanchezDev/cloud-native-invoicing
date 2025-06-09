@@ -28,7 +28,7 @@ public class InvoiceService {
   @Value("${file.service.url}") private String fileServiceUrl;
 
   public Invoice createAndUpload(String clientId, LocalDate date, byte[] content, String filename) {
-    // 1) llamar file-service para guardar en EFS + S3 con RestTemplate multipart
+    // 1) Calling file-service to save on EFS + S3 w/ RestTemplate multipart
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.MULTIPART_FORM_DATA);
     LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
@@ -41,7 +41,7 @@ public class InvoiceService {
         entity, String.class
     );
 
-    // 2) guardar metadata en H2
+    // 2) Save metadata on H2
     Invoice inv = new Invoice();
     inv.setClientId(clientId);
     inv.setDate(date);
@@ -71,7 +71,7 @@ public class InvoiceService {
   }
 
   public byte[] downloadFileFromFileService(String fileServiceUrl, String key) {
-    // Descarga el archivo usando RestTemplate
+    // Downloading using RestTemplate
     return restTemplate.getForObject(
         fileServiceUrl + "/files/download/" + key,
         byte[].class

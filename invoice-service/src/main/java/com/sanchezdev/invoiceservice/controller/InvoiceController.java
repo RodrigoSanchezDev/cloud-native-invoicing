@@ -83,7 +83,7 @@ public class InvoiceController {
                  .contentType(MediaType.APPLICATION_OCTET_STREAM)
                  .body(file);
            } catch (Exception e) {
-             e.printStackTrace(); // Log the error for debugging
+             e.printStackTrace(); 
              return ResponseEntity.status(500)
                  .body(("Error descargando archivo: " + e.getMessage()).getBytes());
            }

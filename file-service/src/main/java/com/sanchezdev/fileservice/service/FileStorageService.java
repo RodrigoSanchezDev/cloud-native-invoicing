@@ -24,7 +24,7 @@ public class FileStorageService {
     private final S3Client s3Client;
 
     public void saveFile(String client, String date, MultipartFile file) {
-        // 1. Guardar en EFS
+        // 1. Save on EFS
         String path = efsBaseDir + "/" + client + "/" + date;
         File dir = new File(path);
         if (!dir.exists()) dir.mkdirs();
@@ -34,7 +34,7 @@ public class FileStorageService {
         } catch (Exception e) {
             throw new RuntimeException("Error guardando archivo en EFS", e);
         }
-        // 2. Subir a S3
+        // 2. Upload to S3
         PutObjectRequest putReq = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(client + "/" + date + "/" + file.getOriginalFilename())
@@ -44,7 +44,7 @@ public class FileStorageService {
     }
 
     public byte[] downloadFile(String key) {
-        // Descargar siempre desde S3
+        // Download always from S3
         GetObjectRequest getReq = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
