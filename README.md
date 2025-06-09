@@ -45,9 +45,8 @@ This project provides a robust backend for managing invoices, supporting file up
 - H2 (in-memory, can be replaced with RDS)
 
 ## Screenshots
-> _**Note:**_ Screenshots of endpoints, S3/EFS integration, and Postman tests should be added here. Example:
 
-- ![Postman - List Invoices](screenshots/list-invoices.png)
+- ![Postman - Creating Invoices ](screenshots/creating-invoices.png)
 - ![AWS S3 - Invoice Files](screenshots/s3-invoices.png)
 - ![EFS - Invoice Files](screenshots/efs-invoices.png)
 - ![Postman - Upload Invoice](screenshots/upload-invoice.png)
