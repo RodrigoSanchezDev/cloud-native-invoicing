@@ -6,7 +6,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/files")
@@ -30,5 +30,14 @@ public class FileController {
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + key)
         .contentType(MediaType.APPLICATION_OCTET_STREAM)
         .body(fileBytes);
+  }
+
+  @PostMapping("/create-and-upload-pdf/{client}/{date}")
+  public ResponseEntity<Void> createAndUploadPdf(
+      @PathVariable String client,
+      @PathVariable String date,
+      @RequestBody Map<String, Object> invoiceData) {
+    fileStorageService.createAndUploadPdf(client, date, invoiceData);
+    return ResponseEntity.ok().build();
   }
 }

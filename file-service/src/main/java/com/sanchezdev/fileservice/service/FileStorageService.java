@@ -13,6 +13,12 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 @Service
 @RequiredArgsConstructor
@@ -51,5 +57,39 @@ public class FileStorageService {
                 .build();
         ResponseBytes<GetObjectResponse> resp = s3Client.getObjectAsBytes(getReq);
         return resp.asByteArray();
+    }
+
+    public void createAndUploadPdf(String client, String date, Map<String, Object> invoiceData) {
+        // Generate PDF
+        String path = efsBaseDir + "/" + client + "/" + date;
+        File dir = new File(path);
+        if (!dir.exists()) dir.mkdirs();
+        File pdfFile = new File(dir, "invoice.pdf");
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+            PDPageContentStream contentStream = new PDPageContentStream(document, page);
+            contentStream.beginText();
+            contentStream.setFont(PDType1Font.HELVETICA, 12);
+            contentStream.setLeading(14.5f);
+            contentStream.newLineAtOffset(25, 725);
+            for (Map.Entry<String, Object> entry : invoiceData.entrySet()) {
+                contentStream.showText(entry.getKey() + ": " + entry.getValue());
+                contentStream.newLine();
+            }
+            contentStream.endText();
+            contentStream.close();
+            document.save(pdfFile);
+        } catch (IOException e) {
+            throw new RuntimeException("Error generating PDF", e);
+        }
+
+        // Upload to S3
+        PutObjectRequest putReq = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(client + "/" + date + "/invoice.pdf")
+                .contentType("application/pdf")
+                .build();
+        s3Client.putObject(putReq, RequestBody.fromFile(pdfFile));
     }
 }
