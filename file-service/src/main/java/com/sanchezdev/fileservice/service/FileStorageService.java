@@ -7,12 +7,12 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -51,5 +51,38 @@ public class FileStorageService {
                 .build();
         ResponseBytes<GetObjectResponse> resp = s3Client.getObjectAsBytes(getReq);
         return resp.asByteArray();
+    }
+
+    public void deleteFile(String key) {
+        // Delete from S3
+        DeleteObjectRequest deleteReq = DeleteObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+        s3Client.deleteObject(deleteReq);
+        
+        // También eliminar de EFS si existe
+        try {
+            String efsPath = efsBaseDir + "/" + key;
+            File efsFile = new File(efsPath);
+            if (efsFile.exists()) {
+                efsFile.delete();
+            }
+        } catch (Exception e) {
+            // Log error but don't fail the operation
+            System.err.println("Warning: Could not delete EFS file " + key + ": " + e.getMessage());
+        }
+    }
+
+    public List<String> listFiles() {
+        // List files from S3
+        ListObjectsV2Request listReq = ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .build();
+        ListObjectsV2Response listResp = s3Client.listObjectsV2(listReq);
+        
+        return listResp.contents().stream()
+                .map(S3Object::key)
+                .collect(Collectors.toList());
     }
 }
