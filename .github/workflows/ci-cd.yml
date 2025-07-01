@@ -1,7 +1,9 @@
-name: CI/CD Pipeline
+name: Cloud Native Invoice Management CI/CD
 
 on:
   push:
+    branches: [ main, develop ]
+  pull_request:
     branches: [ main ]
 
 env:
@@ -11,20 +13,59 @@ env:
   EC2_USER:             ${{ secrets.EC2_USER }}
 
 jobs:
-  build-and-push:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build with Maven
+        run: ./mvnw clean compile -B
+
+      - name: Run Tests
+        run: ./mvnw test -B
+
+      - name: Package Applications
+        run: ./mvnw package -B -DskipTests=true
+
+      - name: Rename JARs for Docker
+        run: |
+          if [ ! -f invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar ]; then
+            mv invoice-service/target/*.jar invoice-service/target/invoice-service-0.0.1-SNAPSHOT.jar
+          fi
+          if [ ! -f file-service/target/file-service-0.0.1-SNAPSHOT.jar ]; then
+            mv file-service/target/*.jar file-service/target/file-service-0.0.1-SNAPSHOT.jar
+          fi
+
+  build-and-push:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
       - name: Build with Maven
-        run: mvn clean package -DskipTests
+        run: ./mvnw clean package -DskipTests=true
 
       - name: Rename JARs for Docker
         run: |
@@ -118,6 +159,9 @@ jobs:
               -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
               -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
               -e AWS_REGION="$AWS_REGION" \
+              -e AZURE_TENANT_ID="28dbf599-4a0c-47c3-be6a-0790f3c7f43b" \
+              -e AZURE_CLIENT_ID="eafae8e9-4496-4f00-a278-4ff30c03272c" \
+              -e AZURE_JWK_SET_URI="https://DuoccloudnativeS6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3" \
               -v /mnt/efs/invoices:/mnt/efs/invoices \
               $DOCKERHUB_USERNAME/file-service:latest
 
@@ -126,5 +170,10 @@ jobs:
               -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
               -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
               -e AWS_REGION="$AWS_REGION" \
+              -e AZURE_TENANT_ID="28dbf599-4a0c-47c3-be6a-0790f3c7f43b" \
+              -e AZURE_CLIENT_ID="eafae8e9-4496-4f00-a278-4ff30c03272c" \
+              -e AZURE_JWK_SET_URI="https://DuoccloudnativeS6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3" \
+              -e AWS_API_GATEWAY_URL="https://5u6zchoeog.execute-api.us-east-1.amazonaws.com" \
+              -e AWS_API_GATEWAY_STAGE="DEV" \
               $DOCKERHUB_USERNAME/invoice-service:latest
           EOF
