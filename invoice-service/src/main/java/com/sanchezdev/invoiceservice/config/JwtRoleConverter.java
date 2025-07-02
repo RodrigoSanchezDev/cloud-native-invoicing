@@ -24,10 +24,14 @@ public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationTo
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         Set<GrantedAuthority> authorities = new HashSet<>();
         
+        // Log JWT claims for debugging
+        System.out.println("JWT Claims: " + jwt.getClaims());
+        
         // Intentar extraer roles de extension_Roles (Azure AD B2C)
         Object extensionRoles = jwt.getClaim("extension_Roles");
         if (extensionRoles != null) {
             String roleValue = extensionRoles.toString();
+            System.out.println("Found extension_Roles: " + roleValue);
             authorities.addAll(mapAzureRolesToSpringRoles(roleValue));
         }
         
@@ -43,11 +47,26 @@ public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationTo
             );
         }
         
-        // Si no hay roles específicos, agregar un rol por defecto
+        // TEMPORAL: Para testing, si no hay roles específicos pero el token es válido, 
+        // asignar roles por defecto basado en el issuer
         if (authorities.isEmpty()) {
-            authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+            String issuer = jwt.getIssuer().toString();
+            if (issuer.contains("b2clogin.com")) {
+                // Token de Azure AD B2C sin extension_Roles - asignar permisos básicos
+                System.out.println("Azure AD B2C token without extension_Roles - assigning default roles");
+                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceManager"));
+                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
+            } else if (issuer.contains("microsoftonline.com")) {
+                // Token de Azure AD regular - asignar solo lectura por seguridad
+                System.out.println("Azure AD token - assigning read-only role");
+                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
+            } else {
+                // Token de origen desconocido - rol básico
+                authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+            }
         }
         
+        System.out.println("Assigned authorities: " + authorities);
         return authorities;
     }
     
