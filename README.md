@@ -2,6 +2,8 @@
 
 A professional, cloud-native microservices solution for invoice management, built with Spring Boot, Docker, AWS S3, and EFS. Developed by Rodrigo Sanchez ([sanchezdev.com](https://sanchezdev.com)).
 
+**Version 2.1** - Updated Azure AD role management for proper file upload permissions.
+
 ---
 
 ## Table of Contents
