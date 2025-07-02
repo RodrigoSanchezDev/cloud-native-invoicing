@@ -45,7 +45,7 @@ public class SecurityConfig {
     
     @Bean
     public JwtDecoder jwtDecoder() {
-        // Usar la URL específica de JWK Set para Azure AD regular
+        // Usar la URL específica de JWK Set para Azure AD 
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(
             "https://login.microsoftonline.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/discovery/v2.0/keys"
         ).build();
