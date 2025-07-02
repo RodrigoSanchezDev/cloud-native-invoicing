@@ -11,11 +11,11 @@ EC2_INSTANCE_IP="${EC2_HOST:-52.4.100.50}"
 INVOICE_SERVICE_PORT="8080"
 FILE_SERVICE_PORT="8081"
 
-# Azure AD Configuration (not B2C)
+# Azure AD B2C Configuration
 AZURE_TENANT_ID="28dbf599-4a0c-47c3-be6a-0790f3c7f43b"
 AZURE_CLIENT_ID="eafae8e9-4496-4f00-a278-4ff30c03272c"
-AZURE_ISSUER="https://login.microsoftonline.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0"
-AZURE_JWKS_URI="https://login.microsoftonline.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/discovery/v2.0/keys"
+AZURE_ISSUER="https://duoccloudnatives6.b2clogin.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0/"
+AZURE_JWKS_URI="https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3"
 
 echo "🚀 Configurando AWS API Gateway para Invoice Management..."
 

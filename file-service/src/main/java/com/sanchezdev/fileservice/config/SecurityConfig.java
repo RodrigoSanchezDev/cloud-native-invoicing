@@ -45,14 +45,14 @@ public class SecurityConfig {
     
     @Bean
     public JwtDecoder jwtDecoder() {
-        // Usar la URL específica de JWK Set para Azure AD 
+        // Usar la URL específica de JWK Set para Azure AD B2C
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(
-            "https://login.microsoftonline.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/discovery/v2.0/keys"
+            "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3"
         ).build();
         
-        // Para Azure AD regular, solo validamos el issuer (la audiencia se valida automáticamente)
+        // Para Azure AD B2C, validamos el issuer específico de B2C
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(
-            "https://login.microsoftonline.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0"
+            "https://duoccloudnatives6.b2clogin.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0/"
         );
         
         jwtDecoder.setJwtValidator(withIssuer);
