@@ -49,7 +49,7 @@ public class SecurityConfig {
     public JwtDecoder jwtDecoder() {
         // Usar la URL específica de JWK Set con el user flow (como el profesor)
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(
-            "https://duocccloudnatives6.b2clogin.com/duocccloudnatives6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS6"
+            "https://duoccloudnatives6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3"
         ).build();
         
         // Validar audience (que el token sea para nuestra aplicación)
@@ -57,7 +57,7 @@ public class SecurityConfig {
         
         // Validar issuer (que el token venga de nuestro tenant de Azure AD B2C) 
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(
-            "https://duocccloudnatives6.b2clogin.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0/"
+            "https://duoccloudnatives6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/v2.0/?p=B2C_1_AppS3"
         );
         
         // Combinar ambos validadores
