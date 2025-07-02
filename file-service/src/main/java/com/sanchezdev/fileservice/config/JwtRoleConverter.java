@@ -57,8 +57,9 @@ public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationTo
                 authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceManager"));
                 authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
             } else if (issuer.contains("microsoftonline.com")) {
-                // Token de Azure AD regular - asignar solo lectura por seguridad
-                System.out.println("Azure AD token - assigning read-only role");
+                // Token de Azure AD regular - asignar rol de manager para testing
+                System.out.println("Azure AD token - assigning manager role for testing");
+                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceManager"));
                 authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
             } else {
                 // Token de origen desconocido - rol básico
