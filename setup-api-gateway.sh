@@ -11,11 +11,11 @@ EC2_INSTANCE_IP="${EC2_HOST:-52.4.100.50}"
 INVOICE_SERVICE_PORT="8080"
 FILE_SERVICE_PORT="8081"
 
-# Azure AD B2C Configuration
+# Azure AD Configuration (not B2C)
 AZURE_TENANT_ID="28dbf599-4a0c-47c3-be6a-0790f3c7f43b"
 AZURE_CLIENT_ID="eafae8e9-4496-4f00-a278-4ff30c03272c"
-AZURE_ISSUER="https://duoccloudnatives6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/v2.0/?p=B2C_1_AppS3"
-AZURE_JWKS_URI="https://duoccloudnatives6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3"
+AZURE_ISSUER="https://login.microsoftonline.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0"
+AZURE_JWKS_URI="https://login.microsoftonline.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/discovery/v2.0/keys"
 
 echo "🚀 Configurando AWS API Gateway para Invoice Management..."
 
@@ -95,11 +95,11 @@ FILES_PROXY_RESOURCE_ID=$(aws apigateway create-resource \
 
 echo "📁 /files/{proxy+} Resource ID: $FILES_PROXY_RESOURCE_ID"
 
-# Function to create authorizer for Azure AD B2C
+# Function to create authorizer for Azure AD
 create_jwt_authorizer() {
     local api_id="$1"
     
-    echo "🔐 Creando JWT Authorizer para Azure AD B2C..."
+    echo "🔐 Creando JWT Authorizer para Azure AD..."
     
     aws apigateway create-authorizer \
         --rest-api-id "$api_id" \
@@ -113,7 +113,7 @@ create_jwt_authorizer() {
 }
 
 # Create JWT Authorizer
-echo "🔐 Creando JWT Authorizer para Azure AD B2C..."
+echo "🔐 Creando JWT Authorizer para Azure AD..."
 AUTHORIZER_ID=$(create_jwt_authorizer "$API_ID")
 if [ -n "$AUTHORIZER_ID" ]; then
     echo "✅ Authorizer creado con ID: $AUTHORIZER_ID"
