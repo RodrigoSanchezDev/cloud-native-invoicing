@@ -1,103 +1,69 @@
 package com.sanchezdev.fileservice.config;
 
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.lang.NonNull;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.stereotype.Component;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Component;
+
+/**
+ * Convierte los roles que vienen en el JWT ( extension_Roles o roles )
+ * a objetos GrantedAuthority que Spring Security entiende.
+ *
+ * ⚠️ Sólo devuelve la **colección de autoridades**, NO un AuthenticationToken
+ * (es lo que exige JwtAuthenticationConverter#setJwtGrantedAuthoritiesConverter).
+ */
 @Component
-public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+public class JwtRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+
+    private static final String EXT_ROLES = "extension_Roles";
+    private static final String STD_ROLES = "roles";
 
     @Override
-    public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
-        Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
-        return new JwtAuthenticationToken(jwt, authorities);
-    }
+    public Collection<GrantedAuthority> convert(Jwt jwt) {
 
-    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         Set<GrantedAuthority> authorities = new HashSet<>();
-        
-        // Log JWT claims for debugging
-        System.out.println("JWT Claims: " + jwt.getClaims());
-        
-        // Intentar extraer roles de extension_Roles (Azure AD B2C)
-        Object extensionRoles = jwt.getClaim("extension_Roles");
-        if (extensionRoles != null) {
-            String roleValue = extensionRoles.toString();
-            System.out.println("Found extension_Roles: " + roleValue);
-            authorities.addAll(mapAzureRolesToSpringRoles(roleValue));
+
+        /* ------------ 1) roles personalizados B2C -------------- */
+        Object extClaim = jwt.getClaim(EXT_ROLES);
+        if (extClaim != null) {
+            authorities.addAll(toSpringRoles(extClaim.toString()));
         }
-        
-        // También intentar extraer de roles estándar (por compatibilidad)
-        Object roles = jwt.getClaim("roles");
-        if (roles instanceof Collection<?>) {
-            Collection<?> roleCollection = (Collection<?>) roles;
-            authorities.addAll(
-                roleCollection.stream()
-                    .map(Object::toString)
-                    .flatMap(role -> mapAzureRolesToSpringRoles(role).stream())
-                    .collect(Collectors.toSet())
-            );
+
+        /* ------------ 2) roles estándar Azure AD --------------- */
+        Collection<String> stdRoles = jwt.getClaimAsStringList(STD_ROLES);
+        if (stdRoles != null) {
+            authorities.addAll(stdRoles.stream()
+                    .flatMap(r -> toSpringRoles(r).stream())
+                    .collect(Collectors.toSet()));
         }
-        
-        // TEMPORAL: Para testing, si no hay roles específicos pero el token es válido, 
-        // asignar roles por defecto basado en el issuer
+
+        /* ------------ 3) respaldo si no vino ningún role -------- */
         if (authorities.isEmpty()) {
-            String issuer = jwt.getIssuer().toString();
-            if (issuer.contains("b2clogin.com")) {
-                // Token de Azure AD B2C sin extension_Roles - asignar permisos básicos
-                System.out.println("Azure AD B2C token without extension_Roles - assigning default roles");
-                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceManager"));
-                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
-            } else if (issuer.contains("microsoftonline.com")) {
-                // Token de Azure AD regular - asignar rol de manager para testing
-                System.out.println("Azure AD token - assigning manager role for testing");
-                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceManager"));
-                authorities.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
-            } else {
-                // Token de origen desconocido - rol básico
-                authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-            }
+            authorities.add(new SimpleGrantedAuthority("ROLE_FileReader"));
         }
-        
-        System.out.println("Assigned authorities: " + authorities);
+
         return authorities;
     }
-    
-    private Set<GrantedAuthority> mapAzureRolesToSpringRoles(String azureRole) {
-        Set<GrantedAuthority> springRoles = new HashSet<>();
-        
+
+    /* ---- mapping Azure-role ➜ Spring-role --------------------- */
+    private Collection<GrantedAuthority> toSpringRoles(String azureRole) {
         switch (azureRole.trim().toLowerCase()) {
             case "admin":
-                // Admin tiene permisos completos
-                springRoles.add(new SimpleGrantedAuthority("ROLE_InvoiceManager"));
-                springRoles.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
-                break;
+                return List.of(
+                    new SimpleGrantedAuthority("ROLE_FileManager"),
+                    new SimpleGrantedAuthority("ROLE_FileReader"));
             case "manager":
-                // Manager puede gestionar facturas
-                springRoles.add(new SimpleGrantedAuthority("ROLE_InvoiceManager"));
-                springRoles.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
-                break;
+                return List.of(
+                    new SimpleGrantedAuthority("ROLE_FileManager"),
+                    new SimpleGrantedAuthority("ROLE_FileReader"));
             case "reader":
-                // Reader solo puede leer facturas
-                springRoles.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
-                break;
-            case "user":
-                // Usuario básico
-                springRoles.add(new SimpleGrantedAuthority("ROLE_USER"));
-                break;
+                return List.of(new SimpleGrantedAuthority("ROLE_FileReader"));
             default:
-                // Por defecto, asignar rol de lectura si es un rol no reconocido
-                springRoles.add(new SimpleGrantedAuthority("ROLE_InvoiceReader"));
+                return List.of(new SimpleGrantedAuthority("ROLE_FileReader"));
         }
-        
-        return springRoles;
     }
 }

@@ -4,13 +4,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.*;
 import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -18,52 +19,65 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
+    private static final String ISSUER =
+        "https://duoccloudnatives6.b2clogin.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0";
+
     @Autowired
     private JwtRoleConverter jwtRoleConverter;
-    
+
+    /* audiencia que validarás (Client ID) */
     @Value("${jwt.audience}")
     private String audience;
 
+    /* ---------------------- reglas HTTP ---------------------- */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(jwtRoleConverter);
+
         http
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
-                // Health endpoints y H2 Console públicos
-                .requestMatchers("/actuator/health", "/h2-console/**").permitAll()
-                // Todos los endpoints de API requieren autenticación (sin roles específicos)
-                .requestMatchers("/api/invoices/**").authenticated()
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-                .decoder(jwtDecoder())
-                .jwtAuthenticationConverter(jwtRoleConverter)))
-            // Para H2 Console
-            .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()));
+            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/actuator/health", "/h2-console/**").permitAll()
+                    .requestMatchers("/api/invoices/**").authenticated()
+                    .anyRequest().authenticated())
+            .oauth2ResourceServer(o2 -> o2
+                    .jwt(jwt -> jwt
+                        .decoder(jwtDecoder())          // usa el bean de abajo
+                        .jwtAuthenticationConverter(converter)))
+            .headers(headers -> headers.frameOptions(Customizer.withDefaults())); // soporta H2
 
         return http.build();
     }
-    
+
+    /* ---------------------- decodificador JWT ---------------------- */
     @Bean
-    public JwtDecoder jwtDecoder() {
-        // Usar la URL específica de JWK Set para Azure AD B2C
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(
-            "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3"
+    JwtDecoder jwtDecoder() {
+
+        /* 1) JWK Set de la policy B2C_1_AppS3 */
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(
+            "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/"
+          + "discovery/v2.0/keys?p=B2C_1_AppS3"
         ).build();
-        
-        // Validar audience (que el token sea para nuestra aplicación)
-        OAuth2TokenValidator<Jwt> audienceValidator = new JwtAudienceValidator(audience);
-        
-        // Validar issuer (que el token venga de nuestro tenant de Azure AD B2C) 
-        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(
-            "https://duoccloudnatives6.b2clogin.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0/"
-        );
-        
-        // Combinar ambos validadores
-        OAuth2TokenValidator<Jwt> withAudience = new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator);
-        
-        jwtDecoder.setJwtValidator(withAudience);
-        return jwtDecoder;
+
+        /* 2-a  Valida issuer */
+        OAuth2TokenValidator<Jwt> issuerValidator =
+            JwtValidators.createDefaultWithIssuer(ISSUER);
+
+        /* 2-b  Valida audience (claim “aud”) */
+        OAuth2TokenValidator<Jwt> audienceValidator = jwt ->
+            jwt.getAudience().contains(audience)
+                ? OAuth2TokenValidatorResult.success()
+                : OAuth2TokenValidatorResult.failure(
+                     new OAuth2Error("invalid_token",
+                                     "Audience mismatch: expected " + audience, null));
+
+        /* 2-c  compón ambos validadores */
+        decoder.setJwtValidator(
+            new DelegatingOAuth2TokenValidator<>(issuerValidator, audienceValidator));
+
+        return decoder;
     }
 }
