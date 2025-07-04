@@ -5,7 +5,8 @@ import com.sanchezdev.invoiceservice.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,11 +22,15 @@ public class InvoiceController {
   private String fileServiceUrl;
 
   @PostMapping("/{clientId}")
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager')")
   public ResponseEntity<Invoice> create(
       @PathVariable String clientId,
       @RequestParam MultipartFile file,
-      @RequestParam String date) throws Exception {
+      @RequestParam String date,
+      @AuthenticationPrincipal Jwt jwt) throws Exception {
+    
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Create invoice endpoint called, roles: " + roles);
+    
     Invoice inv = svc.createAndUpload(
       clientId,
       LocalDate.parse(date),
@@ -36,41 +41,56 @@ public class InvoiceController {
   }
 
   @GetMapping("/history/{clientId}")
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager') or hasAuthority('ROLE_InvoiceReader')")
-  public List<Invoice> history(@PathVariable String clientId) {
-    return svc.listByClient(clientId);
+  public ResponseEntity<List<Invoice>> history(@PathVariable String clientId, @AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Get invoice history endpoint called, roles: " + roles);
+    
+    List<Invoice> invoices = svc.listByClient(clientId);
+    return ResponseEntity.ok(invoices);
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager') or hasAuthority('ROLE_InvoiceReader')")
-  public List<Invoice> getAllInvoices() {
-    return svc.getAllInvoices();
+  public ResponseEntity<List<Invoice>> getAllInvoices(@AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Get all invoices endpoint called, roles: " + roles);
+    
+    List<Invoice> invoices = svc.getAllInvoices();
+    return ResponseEntity.ok(invoices);
   }
 
   @GetMapping("/{id}")
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager') or hasAuthority('ROLE_InvoiceReader')")
-  public ResponseEntity<Invoice> getInvoiceById(@PathVariable Long id) {
+  public ResponseEntity<Invoice> getInvoiceById(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Get invoice by ID endpoint called, roles: " + roles);
+    
     return svc.getInvoiceById(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
   }
 
   @PostMapping
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager')")
-  public Invoice createInvoice(@RequestBody Invoice invoice) {
-    return svc.saveInvoice(invoice);
+  public ResponseEntity<Invoice> createInvoice(@RequestBody Invoice invoice, @AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Create invoice (simple) endpoint called, roles: " + roles);
+    
+    Invoice createdInvoice = svc.saveInvoice(invoice);
+    return ResponseEntity.ok(createdInvoice);
   }
 
   @DeleteMapping("/{id}")
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager')")
-  public ResponseEntity<Void> deleteInvoice(@PathVariable Long id) {
+  public ResponseEntity<Void> deleteInvoice(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Delete invoice endpoint called, roles: " + roles);
+    
     svc.deleteInvoice(id);
     return ResponseEntity.noContent().build();
   }
 
   @PutMapping("/{id}")
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager')")
-  public ResponseEntity<Invoice> updateInvoice(@PathVariable Long id, @RequestBody Invoice invoice) {
+  public ResponseEntity<Invoice> updateInvoice(@PathVariable Long id, @RequestBody Invoice invoice, @AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Update invoice endpoint called, roles: " + roles);
+    
     return svc.getInvoiceById(id)
         .map(existing -> {
           invoice.setId(id);
@@ -80,8 +100,10 @@ public class InvoiceController {
   }
 
   @GetMapping("/download/{id}")
-  @PreAuthorize("hasAuthority('ROLE_InvoiceManager') or hasAuthority('ROLE_InvoiceReader')")
-  public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long id) {
+  public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Download invoice endpoint called, roles: " + roles);
+    
     return svc.getInvoiceById(id)
         .map(inv -> {
            String key = inv.getFileName();
