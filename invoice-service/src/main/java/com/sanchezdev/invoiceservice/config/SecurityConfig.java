@@ -51,8 +51,9 @@ public class SecurityConfig {
     /* ---------------------- decodificador JWT ---------------------- */
     @Bean
     JwtDecoder jwtDecoder() {
+        // Use policy-specific path for Azure AD B2C JWKs
         return NimbusJwtDecoder.withJwkSetUri(
-            "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3")
+            "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/B2C_1_AppS3/discovery/v2.0/keys")
             .build();
     }
 }
