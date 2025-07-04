@@ -54,20 +54,8 @@ public class SecurityConfig {
     /* ------------- 3.  JwtDecoder con validadores ------------------ */
     @Bean
     JwtDecoder jwtDecoder() {
-
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(
+        return NimbusJwtDecoder.withJwkSetUri(
             "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3")
             .build();
-
-        jwtDecoder.setJwtValidator(token -> {
-			OAuth2TokenValidatorResult defaultResult = JwtValidators.createDefault().validate(token);
-			if (!token.hasClaim("extension_")) {
-				System.out.println("ERROR: Falta el claim: ");
-				return OAuth2TokenValidatorResult
-						.failure(new OAuth2Error("invalid_token", "Falta el claim: ", null));
-			}
-			return defaultResult;
-		});
-		return jwtDecoder;
     }
 }
