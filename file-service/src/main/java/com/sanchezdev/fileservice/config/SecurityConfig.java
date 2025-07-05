@@ -55,10 +55,9 @@ public class SecurityConfig {
 
     /* ------------- 3.  JwtDecoder con validadores ------------------ */
     @Bean
-    JwtDecoder jwtDecoder() {
-        // Use policy-specific path for Azure AD B2C JWKs
-        return NimbusJwtDecoder.withJwkSetUri(
-            "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/B2C_1_AppS3/discovery/v2.0/keys")
+    JwtDecoder jwtDecoder(@Value("${azure.b2c.jwk-set-uri}") String jwkSetUri) {
+        // Use JWK Set URI from environment variables for flexibility
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
             .build();
     }
 

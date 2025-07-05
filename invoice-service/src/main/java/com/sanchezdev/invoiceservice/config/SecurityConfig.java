@@ -32,7 +32,7 @@ public class SecurityConfig {
 
     /* ---------------------- reglas HTTP ---------------------- */
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
 
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwtRoleConverter);
@@ -47,7 +47,7 @@ public class SecurityConfig {
                     .anyRequest().authenticated())
             .oauth2ResourceServer(o2 -> o2
                     .jwt(jwt -> jwt
-                        .decoder(jwtDecoder())          // usa el bean de abajo
+                        .decoder(jwtDecoder)          // usa el bean inyectado
                         .jwtAuthenticationConverter(converter)))
             .headers(headers -> headers.frameOptions(Customizer.withDefaults())); // soporta H2
 
@@ -56,10 +56,9 @@ public class SecurityConfig {
 
     /* ---------------------- decodificador JWT ---------------------- */
     @Bean
-    JwtDecoder jwtDecoder() {
-        // Use policy-specific path for Azure AD B2C JWKs
-        return NimbusJwtDecoder.withJwkSetUri(
-            "https://duoccloudnatives6.b2clogin.com/duoccloudnatives6.onmicrosoft.com/B2C_1_AppS3/discovery/v2.0/keys")
+    JwtDecoder jwtDecoder(@Value("${azure.b2c.jwk-set-uri}") String jwkSetUri) {
+        // Use JWK Set URI from environment variables for flexibility
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
             .build();
     }
 
