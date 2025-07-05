@@ -2,6 +2,8 @@ package com.sanchezdev.fileservice.controller;
 
 import com.sanchezdev.fileservice.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -31,19 +33,20 @@ public class FileController {
   }
 
   @GetMapping("/download/{key:.+}")
-  public ResponseEntity<byte[]> download(@PathVariable("key") String key, @AuthenticationPrincipal Jwt jwt) {
+  public ResponseEntity<Resource> downloadFile(@PathVariable("key") String key, @AuthenticationPrincipal Jwt jwt) {
     String roles = jwt.getClaimAsString("extension_Roles");
     System.out.println("File download endpoint called, roles: " + roles);
     
     byte[] fileBytes = fileStorageService.downloadFile(key);
+    Resource resource = new ByteArrayResource(fileBytes);
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + key)
         .contentType(MediaType.APPLICATION_OCTET_STREAM)
-        .body(fileBytes);
+        .body(resource);
   }
 
   @DeleteMapping("/delete/{key:.+}")
-  public ResponseEntity<Void> deleteFile(@PathVariable("key") String key, @AuthenticationPrincipal Jwt jwt) {
+  public ResponseEntity<String> deleteFile(@PathVariable("key") String key, @AuthenticationPrincipal Jwt jwt) {
     String roles = jwt.getClaimAsString("extension_Roles");
     System.out.println("File delete endpoint called, roles: " + roles);
     
