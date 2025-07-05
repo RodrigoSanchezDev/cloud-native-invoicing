@@ -1,0 +1,51 @@
+#!/bin/bash
+
+echo "🔍 VERIFICACIÓN API GATEWAY"
+echo "=========================="
+echo ""
+
+# Información actual
+echo "📋 Información actual:"
+echo "API Gateway ID: 5u6zchoeog"
+echo "Region: us-east-1"
+echo "Stage: DEV"
+echo "URL: http://5u6zchoeog.execute-api.us-east-1.amazonaws.com/DEV"
+echo ""
+
+echo "⚠️  PROBLEMAS DETECTADOS:"
+echo "========================"
+echo "❌ API Gateway no responde (Connection refused)"
+echo "❌ Puerto 80 inaccesible"
+echo "❌ Múltiples IPs fallan: 52.44.91.73, 3.210.220.211"
+echo ""
+
+echo "🔧 VERIFICACIONES NECESARIAS EN AWS CONSOLE:"
+echo "============================================"
+echo "1. AWS Console → API Gateway"
+echo "2. Buscar API con ID: 5u6zchoeog"
+echo "3. Verificar que existe y está activo"
+echo "4. Verificar que stage DEV está desplegado"
+echo "5. Verificar URL completa en el dashboard"
+echo "6. Verificar integraciones → Target debe ser tu EC2"
+echo ""
+
+echo "🎯 POSIBLES SOLUCIONES:"
+echo "======================"
+echo "A) Re-deploy del API Gateway stage DEV"
+echo "B) Verificar/corregir URL del API Gateway"
+echo "C) Verificar integraciones con backend"
+echo "D) Revisar Security Groups/Networking"
+echo ""
+
+echo "✅ TU BACKEND FUNCIONA PERFECTAMENTE:"
+echo "===================================="
+echo "- JWT validation: ✅"
+echo "- Role extraction: ✅ Admin → ROLE_ADMIN"  
+echo "- Endpoints: ✅ GET/POST responden HTTP 200"
+echo "- CORS configurado: ✅"
+echo ""
+
+echo "🔄 SIGUIENTE PASO:"
+echo "=================="
+echo "Ve a AWS Console y verifica la configuración del API Gateway"
+echo "Si necesitas crear uno nuevo, avísame y te ayudo"

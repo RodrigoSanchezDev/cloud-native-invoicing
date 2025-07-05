@@ -20,10 +20,6 @@ import java.util.Arrays;
 @Configuration
 public class SecurityConfig {
 
-    /* Issuer de la instancia B2C  ------------------------------------ */
-    private static final String ISSUER =
-        "https://duoccloudnatives6.b2clogin.com/28dbf599-4a0c-47c3-be6a-0790f3c7f43b/v2.0";
-
     @Value("${jwt.audience}")
     private String audience;
 
