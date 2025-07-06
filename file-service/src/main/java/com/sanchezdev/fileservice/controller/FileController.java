@@ -32,8 +32,8 @@ public class FileController {
     return ResponseEntity.ok().build();
   }
 
-  @GetMapping("/download")
-  public ResponseEntity<Resource> downloadFile(@RequestParam("key") String key, @AuthenticationPrincipal Jwt jwt) {
+  @GetMapping("/download/{key:.+}")
+  public ResponseEntity<Resource> downloadFile(@PathVariable String key, @AuthenticationPrincipal Jwt jwt) {
     String roles = jwt.getClaimAsString("extension_Roles");
     System.out.println("File download endpoint called, roles: " + roles);
     
@@ -45,8 +45,8 @@ public class FileController {
         .body(resource);
   }
 
-  @DeleteMapping("/delete")
-  public ResponseEntity<Void> deleteFile(@RequestParam("key") String key, @AuthenticationPrincipal Jwt jwt) {
+  @DeleteMapping("/delete/{key:.+}")
+  public ResponseEntity<Void> deleteFile(@PathVariable String key, @AuthenticationPrincipal Jwt jwt) {
     String roles = jwt.getClaimAsString("extension_Roles");
     System.out.println("File delete endpoint called, roles: " + roles);
     
