@@ -43,7 +43,7 @@ public class SecurityConfig {
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers("/files/**").authenticated()
+                .requestMatchers("/api/files/**").authenticated()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(o2 -> o2
                 .jwt(jwt -> jwt
