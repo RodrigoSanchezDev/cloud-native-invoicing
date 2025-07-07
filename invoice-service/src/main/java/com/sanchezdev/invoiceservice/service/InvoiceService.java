@@ -1,8 +1,10 @@
 package com.sanchezdev.invoiceservice.service;
 
+import com.sanchezdev.invoiceservice.dto.InvoiceMessageDTO;
 import com.sanchezdev.invoiceservice.model.Invoice;
 import com.sanchezdev.invoiceservice.repository.InvoiceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -26,6 +28,9 @@ public class InvoiceService {
   private final InvoiceRepository repo;
   private final RestTemplate restTemplate = new RestTemplate();
   @Value("${file.service.url}") private String fileServiceUrl;
+  
+  @Autowired(required = false)
+  private RabbitMQProducerService rabbitMQProducerService;
 
   public Invoice createAndUpload(String clientId, LocalDate date, byte[] content, String filename) {
     // 1) Calling file-service to save on EFS + S3 w/ RestTemplate multipart
@@ -47,7 +52,28 @@ public class InvoiceService {
     inv.setDate(date);
     inv.setFileName(filename);
     inv.setS3Key(clientId + "/" + date + "/" + filename);
-    return repo.save(inv);
+    Invoice savedInvoice = repo.save(inv);
+    
+    // 3) Send message to RabbitMQ queue (if enabled)
+    if (rabbitMQProducerService != null) {
+      try {
+        InvoiceMessageDTO message = new InvoiceMessageDTO();
+        message.setInvoiceId(savedInvoice.getId());
+        message.setClientId(clientId);
+        message.setInvoiceDate(date);
+        message.setFileName(filename);
+        message.setS3Key(savedInvoice.getS3Key());
+        message.setDescription("Boleta creada - " + filename);
+        message.setStatus("CREATED");
+        
+        rabbitMQProducerService.sendInvoiceCreatedMessage(message);
+      } catch (Exception e) {
+        // Log error but don't fail the main process
+        System.err.println("Error sending message to RabbitMQ: " + e.getMessage());
+      }
+    }
+    
+    return savedInvoice;
   }
 
   public List<Invoice> listByClient(String clientId) {

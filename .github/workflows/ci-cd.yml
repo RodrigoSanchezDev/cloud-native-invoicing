@@ -49,6 +49,9 @@ jobs:
           if [ ! -f file-service/target/file-service-0.0.1-SNAPSHOT.jar ]; then
             mv file-service/target/*.jar file-service/target/file-service-0.0.1-SNAPSHOT.jar
           fi
+          if [ ! -f rabbitmq-service/target/rabbitmq-service-0.0.1-SNAPSHOT.jar ]; then
+            mv rabbitmq-service/target/*.jar rabbitmq-service/target/rabbitmq-service-0.0.1-SNAPSHOT.jar
+          fi
 
   build-and-push:
     needs: build-and-test
@@ -75,6 +78,9 @@ jobs:
           if [ ! -f file-service/target/file-service-0.0.1-SNAPSHOT.jar ]; then
             mv file-service/target/*.jar file-service/target/file-service-0.0.1-SNAPSHOT.jar
           fi
+          if [ ! -f rabbitmq-service/target/rabbitmq-service-0.0.1-SNAPSHOT.jar ]; then
+            mv rabbitmq-service/target/*.jar rabbitmq-service/target/rabbitmq-service-0.0.1-SNAPSHOT.jar
+          fi
 
       - name: Docker login
         run: echo "$DOCKERHUB_TOKEN" \
@@ -91,6 +97,12 @@ jobs:
           docker build -f Dockerfile.file \
                        -t $DOCKERHUB_USERNAME/file-service:latest .
           docker push $DOCKERHUB_USERNAME/file-service:latest
+
+      - name: Build & push rabbitmq-service
+        run: |
+          docker build -f Dockerfile.rabbitmq \
+                       -t $DOCKERHUB_USERNAME/rabbitmq-service:latest .
+          docker push $DOCKERHUB_USERNAME/rabbitmq-service:latest
 
   deploy:
     needs: build-and-push
@@ -149,10 +161,20 @@ jobs:
             # Traer las últimas imágenes
             docker pull $DOCKERHUB_USERNAME/file-service:latest
             docker pull $DOCKERHUB_USERNAME/invoice-service:latest
+            docker pull $DOCKERHUB_USERNAME/rabbitmq-service:latest
 
             # Parar y limpiar antiguos contenedores
-            docker stop file-service invoice-service || true
-            docker rm   file-service invoice-service || true
+            docker stop file-service invoice-service rabbitmq-service rabbitmq-server || true
+            docker rm   file-service invoice-service rabbitmq-service rabbitmq-server || true
+
+            # Levantar RabbitMQ Server
+            docker run -d --restart unless-stopped --name rabbitmq-server -p 5672:5672 -p 15672:15672 \
+              -e RABBITMQ_DEFAULT_USER=admin \
+              -e RABBITMQ_DEFAULT_PASS=admin123 \
+              rabbitmq:3.11-management
+
+            # Esperar que RabbitMQ esté listo
+            sleep 30
 
             # Levantar file-service con EFS montado
             docker run -d --restart unless-stopped --name file-service -p 8081:8081 \
@@ -165,8 +187,9 @@ jobs:
               -v /mnt/efs/invoices:/mnt/efs/invoices \
               $DOCKERHUB_USERNAME/file-service:latest
 
-            # Levantar invoice-service
+            # Levantar invoice-service con RabbitMQ habilitado
             docker run -d --restart unless-stopped --name invoice-service -p 8080:8080 \
+              --link rabbitmq-server:rabbitmq \
               -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
               -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
               -e AWS_REGION="$AWS_REGION" \
@@ -175,5 +198,26 @@ jobs:
               -e AZURE_JWK_SET_URI="https://DuoccloudnativeS6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3" \
               -e AWS_API_GATEWAY_URL="https://5u6zchoeog.execute-api.us-east-1.amazonaws.com" \
               -e AWS_API_GATEWAY_STAGE="DEV" \
+              -e RABBITMQ_ENABLED=true \
+              -e RABBITMQ_HOST=rabbitmq \
+              -e RABBITMQ_USERNAME=admin \
+              -e RABBITMQ_PASSWORD=admin123 \
               $DOCKERHUB_USERNAME/invoice-service:latest
+
+            # Levantar rabbitmq-service
+            docker run -d --restart unless-stopped --name rabbitmq-service -p 8082:8082 \
+              --link rabbitmq-server:rabbitmq \
+              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+              -e AWS_REGION="$AWS_REGION" \
+              -e AZURE_TENANT_ID="28dbf599-4a0c-47c3-be6a-0790f3c7f43b" \
+              -e AZURE_CLIENT_ID="eafae8e9-4496-4f00-a278-4ff30c03272c" \
+              -e AZURE_JWK_SET_URI="https://DuoccloudnativeS6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3" \
+              -e RABBITMQ_HOST=rabbitmq \
+              -e RABBITMQ_USERNAME=admin \
+              -e RABBITMQ_PASSWORD=admin123 \
+              -e ORACLE_DB_URL="jdbc:oracle:thin:@//your_oracle_host:1521/your_service_name" \
+              -e ORACLE_DB_USERNAME="your_oracle_user" \
+              -e ORACLE_DB_PASSWORD="your_oracle_password" \
+              $DOCKERHUB_USERNAME/rabbitmq-service:latest
           EOF

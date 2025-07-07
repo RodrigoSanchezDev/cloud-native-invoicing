@@ -1,8 +1,8 @@
 # Invoice Management Microservices
 
-A professional, cloud-native microservices solution for invoice management, built with Spring Boot, Docker, AWS S3, and EFS. Developed by Rodrigo Sanchez ([sanchezdev.com](https://sanchezdev.com)).
+A professional, cloud-native microservices solution for invoice management, built with Spring Boot, Docker, AWS S3, EFS, and **RabbitMQ message queues**. Developed by Rodrigo Sanchez ([sanchezdev.com](https://sanchezdev.com)).
 
-**Version 2.1** - Updated Azure AD B2C integration with role-based access control for secure file upload permissions.
+**Version 3.0** - Updated with RabbitMQ integration for message queues and Oracle Cloud database integration.
 
 ---
 
@@ -11,6 +11,7 @@ A professional, cloud-native microservices solution for invoice management, buil
 - [Architecture](#architecture)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
+- [RabbitMQ Integration](#rabbitmq-integration)
 - [Screenshots](#screenshots)
 - [Setup & Deployment](#setup--deployment)
 - [Environment Variables](#environment-variables)
@@ -21,30 +22,54 @@ A professional, cloud-native microservices solution for invoice management, buil
 ---
 
 ## Overview
-This project provides a robust backend for managing invoices, supporting file uploads to AWS S3 and persistent storage on AWS EFS. It is designed for scalability, security, and easy integration with modern DevOps workflows.
+This project provides a robust backend for managing invoices, supporting file uploads to AWS S3, persistent storage on AWS EFS, and **asynchronous message processing with RabbitMQ**. It includes automatic boleta processing and storage in Oracle Cloud database.
 
 ## Architecture
-- **invoice-service**: Handles invoice CRUD operations and orchestrates file storage.
-- **file-service**: Manages file uploads/downloads to AWS S3 and EFS.
-- **AWS S3**: Stores invoice files securely.
-- **AWS EFS**: Provides persistent file storage for local access.
-- **Docker**: Containerizes both services for easy deployment.
+- **invoice-service**: Handles invoice CRUD operations, orchestrates file storage, and **sends messages to RabbitMQ queue**
+- **file-service**: Manages file uploads/downloads to AWS S3 and EFS
+- **rabbitmq-service**: **NEW** - Processes RabbitMQ messages and stores boletas in Oracle Cloud
+- **RabbitMQ Server**: Message broker for asynchronous processing
+- **AWS S3**: Stores invoice files securely
+- **AWS EFS**: Provides persistent file storage for local access
+- **Oracle Cloud**: Stores processed boletas from message queue
+- **Docker**: Containerizes all services for easy deployment
 
 ## Features
 - RESTful API for invoice management
 - File upload, download, update, delete, and listing
+- **🆕 RabbitMQ message queues for boleta processing**
+- **🆕 Automatic Oracle Cloud database integration**
+- **🆕 Asynchronous message processing with consumer endpoints**
 - AWS S3 and EFS integration
 - Dockerized microservices
 - Secure handling of AWS credentials (supports temporary session tokens)
+- Azure AD B2C authentication with role-based access control
 - Ready for CI/CD with GitHub Actions
 
 ## Tech Stack
 - Java 17, Spring Boot 3
 - Spring Data JPA, Lombok
+- **🆕 Spring AMQP (RabbitMQ)**
+- **🆕 Oracle Database (Cloud)**
 - AWS SDK v2 (S3)
-- Docker
+- Docker & Docker Compose
 - AWS S3, AWS EFS
 - H2 (in-memory, can be replaced with RDS)
+
+## RabbitMQ Integration
+
+### 🐰 Message Flow
+1. **Invoice Creation** → Automatic message sent to RabbitMQ queue
+2. **RabbitMQ Consumer** → Processes messages and stores in Oracle Cloud
+3. **REST APIs** → Query processed boletas from Oracle database
+
+### 📡 Key Endpoints
+- `POST /api/rabbitmq/send-message` - Send message to queue
+- `GET /api/rabbitmq/boletas` - List all processed boletas
+- `GET /api/rabbitmq/boletas/client/{clientId}` - Get boletas by client
+- `GET /api/rabbitmq/boletas/invoice/{id}` - Get boletas by invoice ID
+
+**📖 For detailed RabbitMQ documentation, see [RABBITMQ-README.md](RABBITMQ-README.md)**
 
 ## Screenshots
 
@@ -59,12 +84,14 @@ This project provides a robust backend for managing invoices, supporting file up
 ```sh
 docker build -t sanchezdev01/file-service:latest -f Dockerfile.file .
 docker build -t sanchezdev01/invoice-service:latest -f Dockerfile.invoice .
+docker build -t sanchezdev01/rabbitmq-service:latest -f Dockerfile.rabbitmq .
 ```
 
 ### 2. Stop and Remove Old Containers
 ```sh
 docker stop file-service && docker rm file-service
 docker stop invoice-service && docker rm invoice-service
+docker stop rabbitmq-service && docker rm rabbitmq-service
 ```
 
 ### 3. Run Containers with AWS Credentials
@@ -87,6 +114,11 @@ docker run -d --restart unless-stopped \
   -e AWS_SESSION_TOKEN="<your-session-token>" \
   -e AWS_REGION="us-east-1" \
   sanchezdev01/invoice-service:latest
+
+docker run -d --restart unless-stopped \
+  --name rabbitmq-service \
+  -p 5672:5672 -p 15672:15672 \
+  sanchezdev01/rabbitmq-service:latest
 ```
 
 > _Replace `<your-access-key>`, `<your-secret-key>`, and `<your-session-token>` with your actual AWS credentials._
@@ -114,6 +146,12 @@ docker run -d --restart unless-stopped \
 - `GET    /api/files/download/{key}`: Download file from S3
 - `DELETE /api/files/delete/{key}`: Delete file from S3
 - `GET    /api/files/list`: List all files
+
+### RabbitMQ Service Endpoints
+- `POST   /api/rabbitmq/send-message`: Send message to RabbitMQ queue
+- `GET    /api/rabbitmq/boletas`: List all processed boletas
+- `GET    /api/rabbitmq/boletas/client/{clientId}`: Get boletas by client
+- `GET    /api/rabbitmq/boletas/invoice/{id}`: Get boletas by invoice ID
 
 ## CRUD Testing
 - All endpoints can be tested via Postman or curl.

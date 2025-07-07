@@ -17,6 +17,7 @@
   <modules>
     <module>invoice-service</module>
     <module>file-service</module>
+    <module>rabbitmq-service</module>
   </modules>
   <properties>
     <java.version>17</java.version>

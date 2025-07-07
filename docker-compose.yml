@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: rabbitmq-server
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - invoice-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+
+  # H2 Database for Oracle Cloud simulation (development only)
+  h2-oracle-sim:
+    image: oscarfonts/h2:latest
+    container_name: h2-oracle-simulation
+    ports:
+      - "8083:81"   # H2 web console
+      - "9092:9092" # H2 TCP server
+    environment:
+      H2_OPTIONS: -webAllowOthers -tcpAllowOthers -tcpPort 9092
+    volumes:
+      - h2_data:/opt/h2-data
+    networks:
+      - invoice-network
+
+  # RabbitMQ Service
+  rabbitmq-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.rabbitmq
+    container_name: rabbitmq-service
+    ports:
+      - "8082:8082"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSWORD=admin123
+      - RABBITMQ_VHOST=/
+      # Use H2 instead of Oracle for development
+      - ORACLE_DB_URL=jdbc:h2:tcp://h2-oracle-sim:9092/mem:oracledb;DB_CLOSE_DELAY=-1
+      - ORACLE_DB_USERNAME=sa
+      - ORACLE_DB_PASSWORD=
+      - JPA_DDL_AUTO=create-drop
+      - JPA_SHOW_SQL=true
+      # Azure AD settings
+      - AZURE_TENANT_ID=28dbf599-4a0c-47c3-be6a-0790f3c7f43b
+      - AZURE_CLIENT_ID=eafae8e9-4496-4f00-a278-4ff30c03272c
+      - AZURE_JWK_SET_URI=https://DuoccloudnativeS6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      h2-oracle-sim:
+        condition: service_started
+    networks:
+      - invoice-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/rabbitmq/health"]
+      timeout: 10s
+      retries: 5
+      interval: 30s
+
+volumes:
+  rabbitmq_data:
+  h2_data:
+
+networks:
+  invoice-network:
+    driver: bridge
