@@ -6,7 +6,7 @@ echo "================================================================"
 # Variables de configuración
 EC2_USER="ec2-user"
 EC2_HOST="ec2-52-4-100-50.compute-1.amazonaws.com"
-SSH_KEY="/Users/rodrigosanchezcornejo/Library/Mobile Documents/com~apple~CloudDocs/Cursos Profesionales/Ing. Desarrollo de Software/DESARROLLO CLOUD NATIVE/Semana 7 /semana7.pem"
+SSH_KEY="semana7.pem"
 
 # Función para verificar clave SSH
 check_ssh_key() {
@@ -45,7 +45,7 @@ deploy_to_github() {
 create_ec2_docker_compose() {
     echo "📄 Creando docker-compose para EC2..."
     
-cat > docker-compose.yml << 'EOF'
+cat > docker-compose.ec2.yml << 'EOF'
 version: '3.8'
 
 services:
@@ -75,23 +75,31 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=ec2
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USERNAME=admin
       - RABBITMQ_PASSWORD=admin123
-      - RABBITMQ_ENABLED=true
       - AZURE_TENANT_ID=28dbf599-4a0c-47c3-be6a-0790f3c7f43b
       - AZURE_CLIENT_ID=054924b5-14ae-4ede-9d8b-a1a71a1e723f
     depends_on:
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
+
+  # File Service
+  file-service:
+    image: sanchezdev01/file-service:latest
+    container_name: file-service
+    ports:
+      - "8081:8081"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=us-east-1
+      - AZURE_TENANT_ID=28dbf599-4a0c-47c3-be6a-0790f3c7f43b
+      - AZURE_CLIENT_ID=eafae8e9-4496-4f00-a278-4ff30c03272c
+      - AZURE_JWK_SET_URI=https://DuoccloudnativeS6.b2clogin.com/DuoccloudnativeS6.onmicrosoft.com/discovery/v2.0/keys?p=B2C_1_AppS3
+    restart: unless-stopped
 
   # RabbitMQ Service
   rabbitmq-service:
@@ -100,7 +108,6 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - SPRING_PROFILES_ACTIVE=ec2
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USERNAME=admin
@@ -120,11 +127,6 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
 
 volumes:
   rabbitmq_data:
