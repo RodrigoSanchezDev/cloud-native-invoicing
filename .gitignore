@@ -4,6 +4,19 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# 🔐 Security - Sensitive files containing secrets and credentials
+.env
+.env.local
+.env.production
+.env.staging
+*.pem
+*.key
+credentials
+config
+# AWS credentials file (usually in ~/.aws/ but just in case)
+aws_credentials
+azure_credentials
+
 ### STS ###
 .apt_generated
 .classpath

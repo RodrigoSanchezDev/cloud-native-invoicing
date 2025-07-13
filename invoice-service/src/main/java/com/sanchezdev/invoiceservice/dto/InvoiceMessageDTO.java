@@ -16,5 +16,6 @@ public class InvoiceMessageDTO {
     private String fileName;
     private String s3Key;
     private String description;
+    private Double amount;
     private String status;
 }

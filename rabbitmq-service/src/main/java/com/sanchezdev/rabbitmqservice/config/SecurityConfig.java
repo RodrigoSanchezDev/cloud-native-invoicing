@@ -21,6 +21,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/api/rabbitmq/health", "/api/rabbitmq/send-test-message", 
+                               "/api/rabbitmq/consume-test", "/api/rabbitmq/boletas-test", "/api/rabbitmq/queue-info-test").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

@@ -42,7 +42,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/actuator/health", "/h2-console/**").permitAll()
+                    .requestMatchers("/actuator/health", "/h2-console/**", "/api/invoices/test/**").permitAll()
                     .requestMatchers("/api/invoices/**").authenticated()
                     .anyRequest().authenticated())
             .oauth2ResourceServer(o2 -> o2
