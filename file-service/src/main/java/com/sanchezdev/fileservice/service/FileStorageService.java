@@ -22,7 +22,7 @@ public class FileStorageService {
     private String bucket;
     private final S3Client s3Client;
 
-    public void saveFile(String client, String date, MultipartFile file) {
+    public String saveFile(String client, String date, MultipartFile file) {
         // 1. Save on EFS
         String path = efsBaseDir + "/" + client + "/" + date;
         File dir = new File(path);
@@ -34,12 +34,45 @@ public class FileStorageService {
             throw new RuntimeException("Error guardando archivo en EFS", e);
         }
         // 2. Upload to S3
+        String key = client + "/" + date + "/" + file.getOriginalFilename();
         PutObjectRequest putReq = PutObjectRequest.builder()
                 .bucket(bucket)
-                .key(client + "/" + date + "/" + file.getOriginalFilename())
+                .key(key)
                 .contentType(file.getContentType())
                 .build();
         s3Client.putObject(putReq, RequestBody.fromFile(dest));
+        return key;
+    }
+
+    public String savePdfFile(String fileName, byte[] content) {
+        try {
+            // Generate key with current date structure
+            String currentDate = java.time.LocalDate.now().toString();
+            String key = "invoices/" + currentDate + "/" + fileName;
+            
+            // 1. Save on EFS
+            String path = efsBaseDir + "/invoices/" + currentDate;
+            File dir = new File(path);
+            if (!dir.exists()) dir.mkdirs();
+            File dest = new File(dir, fileName);
+            
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(dest)) {
+                fos.write(content);
+            }
+            
+            // 2. Upload to S3
+            PutObjectRequest putReq = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .contentType("application/pdf")
+                    .build();
+            s3Client.putObject(putReq, RequestBody.fromBytes(content));
+            
+            System.out.println("PDF file saved successfully to S3 with key: " + key);
+            return key;
+        } catch (Exception e) {
+            throw new RuntimeException("Error saving PDF file", e);
+        }
     }
 
     public byte[] downloadFile(String key) {

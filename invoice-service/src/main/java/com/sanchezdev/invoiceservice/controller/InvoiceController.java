@@ -68,12 +68,40 @@ public class InvoiceController {
             .orElse(ResponseEntity.notFound().build());
   }
 
-  @PostMapping
-  public ResponseEntity<Invoice> createInvoice(@RequestBody Invoice invoice, @AuthenticationPrincipal Jwt jwt) {
-    String roles = jwt.getClaimAsString("extension_Roles");
-    System.out.println("Create invoice (simple) endpoint called, roles: " + roles);
+  // ========== TEST ENDPOINTS (No Authentication Required) ==========
+  
+  @PostMapping("/test/create-with-pdf")
+  public ResponseEntity<Invoice> testCreateInvoiceWithPDF(@RequestBody Invoice invoice) {
+    System.out.println("TEST: Create invoice with PDF endpoint called (no JWT required)");
     
-    Invoice createdInvoice = svc.saveInvoice(invoice);
+    Invoice createdInvoice = svc.saveInvoiceWithPDFAndRabbitMQ(invoice);
+    return ResponseEntity.ok(createdInvoice);
+  }
+
+  @PostMapping("/test/create")
+  public ResponseEntity<Invoice> testCreateInvoice(@RequestBody Invoice invoice) {
+    System.out.println("TEST: Create invoice endpoint called (no JWT required)");
+    
+    Invoice createdInvoice = svc.saveInvoiceWithPDFAndRabbitMQ(invoice);
+    return ResponseEntity.ok(createdInvoice);
+  }
+
+  @GetMapping("/test/list")
+  public ResponseEntity<List<Invoice>> testGetAllInvoices() {
+    System.out.println("TEST: Get all invoices endpoint called (no JWT required)");
+    
+    List<Invoice> invoices = svc.getAllInvoices();
+    return ResponseEntity.ok(invoices);
+  }
+
+  // ========== PRODUCTION ENDPOINTS (JWT Required) ==========
+
+  @PostMapping("/create-with-pdf")
+  public ResponseEntity<Invoice> createInvoiceWithPDF(@RequestBody Invoice invoice, @AuthenticationPrincipal Jwt jwt) {
+    String roles = jwt.getClaimAsString("extension_Roles");
+    System.out.println("Create invoice with PDF endpoint called, roles: " + roles);
+    
+    Invoice createdInvoice = svc.saveInvoiceWithPDFAndRabbitMQ(invoice);
     return ResponseEntity.ok(createdInvoice);
   }
 
@@ -106,7 +134,7 @@ public class InvoiceController {
     
     return svc.getInvoiceById(id)
         .map(inv -> {
-           String key = inv.getFileName();
+           String key = inv.getS3Key(); // Usar s3Key en lugar de fileName
            try {
             byte[] file = svc.downloadFileFromFileService(fileServiceUrl, key);
              return ResponseEntity.ok()
