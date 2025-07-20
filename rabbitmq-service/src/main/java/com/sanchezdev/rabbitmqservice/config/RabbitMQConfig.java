@@ -63,7 +63,7 @@ public class RabbitMQConfig {
         System.out.println("🔧 Creating RabbitMQ DLQ Exchange: " + INVOICE_DLQ_EXCHANGE);
         DirectExchange dlqExchange = new DirectExchange(INVOICE_DLQ_EXCHANGE);
         System.out.println("✅ DLQ Exchange created successfully: " + dlqExchange.getName());
-        return dlqExchange;
+        return dlqExchange; 
     }
 
     @Bean

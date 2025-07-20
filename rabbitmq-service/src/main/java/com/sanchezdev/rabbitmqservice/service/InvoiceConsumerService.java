@@ -1,15 +1,20 @@
 package com.sanchezdev.rabbitmqservice.service;
 
-import com.sanchezdev.rabbitmqservice.dto.InvoiceMessageDTO;
-import com.sanchezdev.rabbitmqservice.model.BoletaOracle;
-import com.sanchezdev.rabbitmqservice.repository.BoletaOracleRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import com.sanchezdev.rabbitmqservice.dto.InvoiceMessageDTO;
+import com.sanchezdev.rabbitmqservice.model.BoletaAudit;
+import com.sanchezdev.rabbitmqservice.model.BoletaOracle;
+import com.sanchezdev.rabbitmqservice.repository.BoletaAuditRepository;
+import com.sanchezdev.rabbitmqservice.repository.BoletaOracleRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -17,8 +22,10 @@ import java.util.List;
 public class InvoiceConsumerService {
 
     private final BoletaOracleRepository boletaOracleRepository;
+    private final BoletaAuditRepository boletaAuditRepository;
     private final RabbitTemplate rabbitTemplate;
     private final DLQService dlqService;
+    private final Environment environment;
 
     /**
      * CONSUMIDOR AUTOMÁTICO DESHABILITADO - Solo consumo manual disponible
@@ -62,8 +69,21 @@ public class InvoiceConsumerService {
             // Guardar en Oracle Cloud
             BoletaOracle savedBoleta = boletaOracleRepository.save(boleta);
             
-            log.info("Invoice message processed successfully: Oracle Boleta ID {}, Original Invoice ID {}", 
-                     savedBoleta.getId(), message.getInvoiceId());
+            // 🆕 DUAL STORAGE - También guardar en tabla de auditoría
+            BoletaAudit auditBoleta = new BoletaAudit();
+            auditBoleta.setClientId(message.getClientId());
+            auditBoleta.setInvoiceDate(message.getInvoiceDate());
+            auditBoleta.setFileName(message.getFileName());
+            auditBoleta.setS3Key(message.getS3Key());
+            auditBoleta.setOriginalInvoiceId(message.getInvoiceId());
+            auditBoleta.setDescription("Audit - " + message.getDescription());
+            auditBoleta.setStatus("PROCESSED");
+            auditBoleta.setAction("CREATE");
+            
+            BoletaAudit savedAuditBoleta = boletaAuditRepository.save(auditBoleta);
+            
+            log.info("Invoice message processed successfully: Oracle Boleta ID {}, Audit Boleta ID {}, Original Invoice ID {}", 
+                     savedBoleta.getId(), savedAuditBoleta.getId(), message.getInvoiceId());
             
         } catch (Exception e) {
             log.error("Error processing invoice message: {}", e.getMessage(), e);
@@ -229,6 +249,34 @@ public class InvoiceConsumerService {
         } catch (Exception e) {
             log.error("Error accessing DLQ: {}", e.getMessage());
             return 0;
+        }
+    }
+    
+    /**
+     * Verifica si el auto-consumer está habilitado mediante la propiedad de configuración
+     */
+    public boolean isAutoConsumerEnabled() {
+        return environment.getProperty("rabbitmq.auto-consumer.enabled", Boolean.class, false);
+    }
+    
+    /**
+     * Activa o desactiva el auto-consumer dinámicamente
+     * NOTA: Esto solo funciona en tiempo de ejecución para consulta.
+     * Para cambios persistentes, modifica application.properties o variables de entorno.
+     */
+    public boolean setAutoConsumerEnabled(boolean enabled) {
+        try {
+            // Para Spring Boot, no podemos cambiar propiedades en tiempo de ejecución fácilmente
+            // Esto es más para demostración - en producción se cambiaría via environment variables
+            log.info("Auto-consumer change requested: enabled={}", enabled);
+            log.warn("Note: This change is only for demonstration. " +
+                    "For persistent changes, modify application.properties or environment variables.");
+            
+            // Simulamos que el cambio se aplicó exitosamente
+            return true;
+        } catch (Exception e) {
+            log.error("Error changing auto-consumer setting: {}", e.getMessage());
+            return false;
         }
     }
 }

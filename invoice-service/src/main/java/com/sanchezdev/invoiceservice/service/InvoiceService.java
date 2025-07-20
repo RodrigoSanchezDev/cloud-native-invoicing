@@ -1,27 +1,25 @@
 package com.sanchezdev.invoiceservice.service;
 
-import com.sanchezdev.invoiceservice.dto.InvoiceMessageDTO;
-import com.sanchezdev.invoiceservice.model.Invoice;
-import com.sanchezdev.invoiceservice.repository.InvoiceRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import com.sanchezdev.invoiceservice.dto.InvoiceMessageDTO;
+import com.sanchezdev.invoiceservice.model.Invoice;
+import com.sanchezdev.invoiceservice.repository.InvoiceRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service @RequiredArgsConstructor
 public class InvoiceService {

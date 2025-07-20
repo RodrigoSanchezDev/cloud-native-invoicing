@@ -1,17 +1,24 @@
 package com.sanchezdev.fileservice.service;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.ResponseBytes;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
-
 import java.io.File;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import lombok.RequiredArgsConstructor;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 @Service
 @RequiredArgsConstructor
@@ -116,5 +123,66 @@ public class FileStorageService {
         return listResp.contents().stream()
                 .map(S3Object::key)
                 .collect(Collectors.toList());
+    }
+    
+    /**
+     * Verifica si un archivo existe en EFS y retorna información detallada
+     */
+    public FileVerificationResult verifyFileInEFS(String s3Key) {
+        try {
+            // Convertir S3 key al path de EFS
+            String efsPath = efsBaseDir + "/" + s3Key;
+            File efsFile = new File(efsPath);
+            
+            FileVerificationResult result = new FileVerificationResult();
+            result.s3Key = s3Key;
+            result.efsPath = efsPath;
+            result.exists = efsFile.exists();
+            
+            if (result.exists) {
+                result.size = efsFile.length();
+                result.lastModified = java.time.Instant.ofEpochMilli(efsFile.lastModified()).toString();
+                result.readable = efsFile.canRead();
+                result.status = "SUCCESS";
+                result.message = "File verified successfully in EFS";
+            } else {
+                result.size = 0;
+                result.lastModified = null;
+                result.readable = false;
+                result.status = "NOT_FOUND";
+                result.message = "File not found in EFS";
+            }
+            
+            result.timestamp = java.time.LocalDateTime.now().toString();
+            return result;
+            
+        } catch (Exception e) {
+            FileVerificationResult result = new FileVerificationResult();
+            result.s3Key = s3Key;
+            result.efsPath = efsBaseDir + "/" + s3Key;
+            result.exists = false;
+            result.size = 0;
+            result.lastModified = null;
+            result.readable = false;
+            result.status = "ERROR";
+            result.message = "Error verifying file: " + e.getMessage();
+            result.timestamp = java.time.LocalDateTime.now().toString();
+            return result;
+        }
+    }
+    
+    /**
+     * Clase para el resultado de verificación de archivos
+     */
+    public static class FileVerificationResult {
+        public String s3Key;
+        public String efsPath;
+        public boolean exists;
+        public long size;
+        public String lastModified;
+        public boolean readable;
+        public String status;
+        public String message;
+        public String timestamp;
     }
 }

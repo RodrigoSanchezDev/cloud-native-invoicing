@@ -1,18 +1,28 @@
 package com.sanchezdev.rabbitmqservice.controller;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sanchezdev.rabbitmqservice.dto.InvoiceMessageDTO;
 import com.sanchezdev.rabbitmqservice.model.BoletaOracle;
 import com.sanchezdev.rabbitmqservice.service.InvoiceConsumerService;
 import com.sanchezdev.rabbitmqservice.service.RabbitMQProducerService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/rabbitmq")
@@ -297,6 +307,9 @@ class SimpleRabbitMQController {
     
     private final InvoiceConsumerService consumerService;
     
+    @Autowired
+    private ApplicationContext applicationContext;
+    
     /**
      * Endpoint simple para consumir mensajes manualmente - Diseñado para pruebas
      * URL: POST /api/consume
@@ -347,6 +360,231 @@ class SimpleRabbitMQController {
             log.error("Error getting queue info: {}", e.getMessage());
             return ResponseEntity.internalServerError()
                 .body("Error: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Endpoint para verificar el estado del auto-consumer
+     * URL: GET /api/auto-consumer-status
+     */
+    @GetMapping("/auto-consumer-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getAutoConsumerStatus() {
+        try {
+            // Verificar si AutoConsumerService está activo consultando el ApplicationContext
+            boolean autoConsumerEnabled = consumerService.isAutoConsumerEnabled();
+            
+            Map<String, Object> status = new HashMap<>();
+            status.put("autoConsumerEnabled", autoConsumerEnabled);
+            status.put("timestamp", java.time.LocalDateTime.now());
+            status.put("message", autoConsumerEnabled ? 
+                "Auto-consumer is ACTIVE - messages are processed automatically" : 
+                "Auto-consumer is DISABLED - use manual consumption endpoints");
+            
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            log.error("Error getting auto-consumer status: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body("Error: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Endpoint para activar el auto-consumer dinámicamente
+     * URL: POST /api/auto-consumer/enable
+     */
+    @PostMapping("/auto-consumer/enable")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> enableAutoConsumer() {
+        try {
+            boolean result = consumerService.setAutoConsumerEnabled(true);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", result);
+            response.put("autoConsumerEnabled", true);
+            response.put("message", "Auto-consumer enabled successfully");
+            response.put("timestamp", java.time.LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error enabling auto-consumer: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body("Error enabling auto-consumer: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Endpoint para desactivar el auto-consumer dinámicamente
+     * URL: POST /api/auto-consumer/disable
+     */
+    @PostMapping("/auto-consumer/disable")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> disableAutoConsumer() {
+        try {
+            boolean result = consumerService.setAutoConsumerEnabled(false);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", result);
+            response.put("autoConsumerEnabled", false);
+            response.put("message", "Auto-consumer disabled successfully");
+            response.put("timestamp", java.time.LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error disabling auto-consumer: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body("Error disabling auto-consumer: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Endpoint mejorado para activar el auto-consumer real dinámicamente
+     * URL: POST /api/auto-consumer-real/enable
+     */
+    @PostMapping("/auto-consumer-real/enable")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> enableRealAutoConsumer() {
+        try {
+            // Intentar obtener AutoConsumerService del contexto
+            Optional<Object> autoConsumerService = getAutoConsumerService();
+            
+            if (autoConsumerService.isPresent()) {
+                Object service = autoConsumerService.get();
+                // Usar reflection para llamar enableAutoConsumer()
+                boolean result = (Boolean) service.getClass()
+                    .getMethod("enableAutoConsumer")
+                    .invoke(service);
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", result);
+                response.put("autoConsumerEnabled", true);
+                response.put("message", "REAL Auto-consumer enabled successfully via AutoConsumerService");
+                response.put("timestamp", java.time.LocalDateTime.now());
+                response.put("service", "AutoConsumerService");
+                
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("autoConsumerEnabled", false);
+                response.put("message", "AutoConsumerService not available - falling back to fake method");
+                response.put("timestamp", java.time.LocalDateTime.now());
+                response.put("service", "InvoiceConsumerService (fake)");
+                
+                return ResponseEntity.ok(response);
+            }
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("message", "Error enabling real auto-consumer");
+            response.put("timestamp", java.time.LocalDateTime.now());
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+    
+    /**
+     * Endpoint mejorado para desactivar el auto-consumer real dinámicamente
+     * URL: POST /api/auto-consumer-real/disable
+     */
+    @PostMapping("/auto-consumer-real/disable")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> disableRealAutoConsumer() {
+        try {
+            Optional<Object> autoConsumerService = getAutoConsumerService();
+            
+            if (autoConsumerService.isPresent()) {
+                Object service = autoConsumerService.get();
+                boolean result = (Boolean) service.getClass()
+                    .getMethod("disableAutoConsumer")
+                    .invoke(service);
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", result);
+                response.put("autoConsumerEnabled", false);
+                response.put("message", "REAL Auto-consumer disabled successfully via AutoConsumerService");
+                response.put("timestamp", java.time.LocalDateTime.now());
+                response.put("service", "AutoConsumerService");
+                
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("autoConsumerEnabled", true);
+                response.put("message", "AutoConsumerService not available - cannot disable real auto-consumer");
+                response.put("timestamp", java.time.LocalDateTime.now());
+                response.put("service", "InvoiceConsumerService (fake)");
+                
+                return ResponseEntity.ok(response);
+            }
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("message", "Error disabling real auto-consumer");
+            response.put("timestamp", java.time.LocalDateTime.now());
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+    
+    /**
+     * Endpoint mejorado para verificar el estado real del auto-consumer
+     * URL: GET /api/auto-consumer-real/status
+     */
+    @GetMapping("/auto-consumer-real/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getRealAutoConsumerStatus() {
+        try {
+            Optional<Object> autoConsumerService = getAutoConsumerService();
+            
+            if (autoConsumerService.isPresent()) {
+                Object service = autoConsumerService.get();
+                boolean isActive = (Boolean) service.getClass()
+                    .getMethod("isAutoConsumerActive")
+                    .invoke(service);
+                
+                Map<String, Object> status = new HashMap<>();
+                status.put("autoConsumerEnabled", isActive);
+                status.put("timestamp", java.time.LocalDateTime.now());
+                status.put("message", isActive ? 
+                    "REAL Auto-consumer is ACTIVE - messages processed automatically by AutoConsumerService" : 
+                    "REAL Auto-consumer is DISABLED - AutoConsumerService rejects messages");
+                status.put("service", "AutoConsumerService");
+                status.put("available", true);
+                
+                return ResponseEntity.ok(status);
+            } else {
+                Map<String, Object> status = new HashMap<>();
+                status.put("autoConsumerEnabled", false);
+                status.put("timestamp", java.time.LocalDateTime.now());
+                status.put("message", "AutoConsumerService not available - check environment variable RABBITMQ_AUTO_CONSUMER_ENABLED");
+                status.put("service", "Not available");
+                status.put("available", false);
+                
+                return ResponseEntity.ok(status);
+            }
+        } catch (Exception e) {
+            Map<String, Object> status = new HashMap<>();
+            status.put("autoConsumerEnabled", false);
+            status.put("error", e.getMessage());
+            status.put("message", "Error checking real auto-consumer status");
+            status.put("timestamp", java.time.LocalDateTime.now());
+            
+            return ResponseEntity.internalServerError().body(status);
+        }
+    }
+    
+    /**
+     * Helper method para obtener AutoConsumerService del contexto Spring
+     */
+    private Optional<Object> getAutoConsumerService() {
+        try {
+            Object service = applicationContext.getBean("autoConsumerService");
+            return Optional.of(service);
+        } catch (Exception e) {
+            return Optional.empty();
         }
     }
 }

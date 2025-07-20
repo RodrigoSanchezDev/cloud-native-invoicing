@@ -34,6 +34,7 @@ services:
       - RABBITMQ_USERNAME=admin
       - RABBITMQ_PASSWORD=admin123
       - RABBITMQ_VHOST=/
+      - RABBITMQ_AUTO_CONSUMER_ENABLED=true
       # Use H2 embedded instead of external for development  
       - ORACLE_DB_URL=jdbc:h2:mem:oracledb;DB_CLOSE_DELAY=-1;MODE=Oracle
       - ORACLE_DB_USERNAME=sa
