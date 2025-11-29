@@ -1,3 +1,25 @@
+<div align="center">
+
+# ☁️ Cloud Native Invoicing
+
+### Sistema de Facturación Cloud-Native con Microservicios
+
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.0-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![AWS](https://img.shields.io/badge/AWS-S3%20%7C%20EFS-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Message%20Queue-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)](https://www.rabbitmq.com/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com/)
+[![Java](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Oracle](https://img.shields.io/badge/Oracle-Cloud-F80000?style=for-the-badge&logo=oracle&logoColor=white)](https://oracle.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
+
+**Solución cloud-native de microservicios** para gestión de facturas con almacenamiento en AWS S3/EFS, procesamiento asíncrono con RabbitMQ, autenticación Azure AD B2C, y persistencia en Oracle Cloud.
+
+[🚀 Quick Start](#setup--deployment) • [🏗️ Arquitectura](#architecture) • [📖 API Docs](#api-documentation) • [👤 Author](#author)
+
+---
+
+</div>
+
 # Invoice Management Microservices
 
 A professional, cloud-native microservices solution for invoice management, built with Spring Boot, Docker, AWS S3, EFS, and **RabbitMQ message queues**. Developed by Rodrigo Sanchez ([sanchezdev.com](https://sanchezdev.com)).
@@ -176,3 +198,25 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 [https://sanchezdev.com](https://sanchezdev.com)
 [https://linkedin.com/in/sanchezdev/](https://linkedin.com/in/sanchezdev/)
 
+
+---
+
+## 👤 Author
+
+<div align="center">
+
+**Rodrigo Sanchez**
+
+[![Portfolio](https://img.shields.io/badge/Portfolio-sanchezdev.com-A855F7?style=for-the-badge&logo=googlechrome&logoColor=white)](https://sanchezdev.com)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-sanchezdev-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sanchezdev)
+[![GitHub](https://img.shields.io/badge/GitHub-RodrigoSanchezDev-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/RodrigoSanchezDev)
+
+</div>
+
+---
+
+<div align="center">
+
+**⭐ Si este proyecto te fue útil, considera darle una estrella ⭐**
+
+</div>
